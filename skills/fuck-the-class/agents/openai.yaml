@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fuck The Class"
+  short_description: "Run controlled exam-cram workflows and trend analysis"
+  default_prompt: "Use $fuck-the-class to run the requested exam-cram action, including deterministic frequency and trend analysis when S2 is selected; read only the selected workflow plus shared rules and enforce all source-data and PDF gates."
