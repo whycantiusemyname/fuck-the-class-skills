@@ -1,44 +1,157 @@
-# Fuck The Class Skills
+# Fuck The Class
 
-Fuck The Class 是一套面向考试冲刺的 Codex 技能集合。它把课程资料、试卷、作业、做题截图、错题记录和 AI 学习对话整理成可追踪、可核验、可重复生成的复习资产，而不是替用户强行安排学习节奏。
+Fuck The Class 是一套面向考试冲刺的 Codex 技能系统。它把散落的课件、试卷、作业、PDF、做题截图、错题记录和 AI 学习对话，整理成结构稳定、来源可追踪、结果可重新生成的本地复习资料。
 
-本仓库包含两个配套技能：
+它不替你制定宏大的学习计划，而是一次完成一个明确动作：整理一门课、录入一套卷、分析考频、批改一次练习、生成当前练习队列，或者制作考前冲刺包。
 
-- `fuck-the-class`：核心应试工作流，覆盖课程初始化、试卷入库、考频与趋势分析、批改记录、练习队列、错因复盘、冲刺包、学习对话提取、课件梳理和核验解答。
-- `pdf-to-markdown`：PDF 转 Obsidian Markdown 的高置信度流水线，负责 MinerU 解析、分段修复、逐页视觉核验和哈希绑定的完成证书。
+本仓库包含两个协作技能：
 
-二者放在一起，是因为 Fuck The Class 在处理 PDF 试卷和 PDF/PPT 课件时，需要一个明确、可验证的文档转换入口。`pdf-to-markdown` 只在所有文本与视觉检查通过后交付最终 Markdown，避免下游复习资料建立在不完整草稿上。
+- [`fuck-the-class`](skills/fuck-the-class/)：管理完整的应试复习工作流。
+- [`pdf-to-markdown`](skills/pdf-to-markdown/)：把 PDF 转成经过文本修复、逐页核验和哈希认证的 Obsidian Markdown。
 
-## 项目特点
+## 能做什么
 
-- 用户控制节奏：一次执行一个明确动作，不自动生成日程。
-- 单一事实来源：题目、标签、做题记录和派生视图各有固定归属。
-- 确定性分析：考频、时间趋势和题型变化由脚本生成，不靠临时猜测。
-- 可核验的 PDF 摄取：未通过文本、视觉与哈希门禁的转换结果不会被当作最终资料。
-- 面向 Obsidian：目录、链接、图片和 Markdown 输出适合本地知识库管理。
+### S0：初始化课程
 
-## 仓库结构
+为一门新课程创建标准目录、题库入口、标签库、做题记录、卡点清单和派生视图目录，也可以检查并修复已有课程缺少的基础文件。
+
+适合：刚开始整理一门课，或者现有资料目录已经失控。
+
+### S1：试卷与题目入库
+
+把试卷、作业、扫描件、照片、PDF 或已有文本整理到统一题库中，保留题目来源、年份、分值、题型、知识点、能力主题和稳定锚点，并同步维护受控标签库。
+
+适合：录入历年卷、模拟卷、章节作业和老师发的练习题。
+
+### S2：考频与趋势分析
+
+从题库确定性地重新生成：
+
+- 知识点与能力主题考频
+- 不同年份和时间窗口的变化
+- 近期升温、降温与稳定主题
+- 新出现的热点和题型变化
+- 同一考点的考法迁移
+- 按主题聚合的题目索引
+
+分析由脚本完成，并绑定输入指纹，避免同一批资料在不同时间得到随意变化的结论。
+
+适合：判断哪些内容长期重要、哪些内容最近变热，以及命题方式发生了什么变化。
+
+### S3：做题批改入库
+
+处理 `inbox` 中的手写答题截图，记录判定结果、错因标签、一句话诊断和原图链接，再把处理后的图片归档。手写过程保留为证据，不会被重复抄成长篇文本。
+
+适合：完成一套卷或一轮练习后，把结果持续积累进个人数据。
+
+### S4：生成当前练习队列
+
+根据题库、重要度、近期趋势、做题历史和未解决问题，生成此刻应该完成的练习队列。它只负责当前队列，不擅自扩展成日程表。
+
+适合：资料很多，但现在不知道先做哪几题。
+
+### S5：错因复盘
+
+汇总做题记录中的错误模式，区分知识缺口、方法问题、审题失误、计算失误等受控错因，输出针对性的复盘结论，并把仍未解决的概念问题写入卡点清单。
+
+适合：已经做了不少题，但错误总在重复出现。
+
+### S6：考前冲刺包
+
+根据题库、趋势分析、做题记录和卡点，生成最后阶段可直接使用的冲刺材料，包括考前检查单、启动练习和提醒卡。
+
+适合：考试临近，需要把复习范围压缩成最后一套行动材料。
+
+### S7：学习对话提取
+
+从导出的 AI 学习对话中提取真正暴露理解障碍的片段，保留关键原话和最终解释，把尚未解决的问题追加到卡点清单，而不是把整段聊天简单总结一遍。
+
+适合：平时通过 AI 学概念，希望把对话里的卡点沉淀下来。
+
+### S8：课件与章节梳理
+
+把 PDF、PPT/PPTX 等章节课件整理成可独立阅读的主干笔记，提炼概念关系、公式条件、典型问题和章节重点，写入课程知识区。
+
+适合：老师的课件信息密度高、顺序跳跃，复习时需要一份连贯版本。
+
+### S9：核验解答
+
+为题库中的指定题目补充经过检查的解答，并以折叠块写在题目下方。解答工作不会擅自改写题干、标签或题目来源。
+
+适合：题库已经建立，需要逐步补齐可信答案和推导过程。
+
+## PDF 转 Markdown
+
+`pdf-to-markdown` 是 Fuck The Class 的文档摄取基础设施，也可以独立使用。它不是一次普通的 PDF 文本提取，而是一条带完成门禁的转换流水线：
+
+1. 检查 PDF 页数和文件大小，必要时安全分块。
+2. 调用 MinerU 精确解析文字、公式、表格和图片。
+3. 单块结果尽量保持 MinerU 原文，多块结果按原始页码顺序合并。
+4. 对 Markdown 分段进行 LLM 通读，修复公式和明显格式损坏。
+5. 对照源 PDF 逐页检查数字、符号、上下标、矩阵、选项、表格、图片和标题顺序。
+6. 校验每一页都被覆盖，且不存在未解决问题或损坏的图片引用。
+7. 生成最终 Markdown 和绑定源文件、分段结果及最终文件哈希的 `completion.json`。
+
+只有全部门禁通过后，最终 Markdown 才会被创建。`draft.md`、中间分段和自然语言中的“已完成”都不能替代完成证书。
+
+## 两个技能如何协作
 
 ```text
-skills/
-  fuck-the-class/
-    SKILL.md
-    agents/
-    references/
-    scripts/
-    tests/
-  pdf-to-markdown/
-    SKILL.md
-    agents/
-    references/
-    scripts/
-    tests/
-requirements-pdf.txt
+课程原始资料
+  -> pdf-to-markdown：解析、修复、逐页核验
+  -> fuck-the-class S1：试卷与题目入库
+  -> fuck-the-class S2：考频、趋势与题型变化
+  -> fuck-the-class S3/S5：做题记录与错因诊断
+  -> fuck-the-class S4/S6：练习队列与冲刺包
+```
+
+处理 PDF 试卷或 PDF 课件时，Fuck The Class 只消费已经通过 PDF 完成门禁的 Markdown，不会把转换草稿直接写进题库或章节笔记。
+
+## 数据组织原则
+
+- `00_原材料/`：原始课件、试卷和附件，只读保存。
+- `10_题库/`：题目正文、锚点、标签和折叠解答的唯一来源。
+- `20_知识/`：章节主干笔记和课程知识材料。
+- `30_我的数据/`：做题记录、截图证据和个人卡点。
+- `40_派生视图/`：考频、趋势、练习队列、复盘和冲刺包，可重新生成。
+
+核心原则是把原材料、事实记录和派生结论分开，避免手工维护多个互相冲突的版本。
+
+## 典型使用方式
+
+### 新建一门课程
+
+```text
+使用 $fuck-the-class 初始化 D:\Study\电路分析。
+```
+
+### 录入并分析历年卷
+
+```text
+使用 $fuck-the-class 把 00_原材料里的历年试卷入库，然后重新生成考频和趋势分析。
+```
+
+### 处理 PDF
+
+```text
+使用 $pdf-to-markdown 把这份 PDF 转成经过核验的 Obsidian Markdown。
+```
+
+### 批改练习并复盘
+
+```text
+使用 $fuck-the-class 处理 inbox 中的答题截图，然后生成错因复盘。
+```
+
+### 考前收束
+
+```text
+使用 $fuck-the-class 根据现有题库和个人记录生成冲刺包。
 ```
 
 ## 安装
 
-将两个技能目录复制到 Codex 技能目录：
+将两个技能复制到 Codex 技能目录：
 
 ```powershell
 $skillsHome = Join-Path $HOME ".codex\skills"
@@ -46,25 +159,40 @@ Copy-Item -Recurse -Force .\skills\fuck-the-class $skillsHome
 Copy-Item -Recurse -Force .\skills\pdf-to-markdown $skillsHome
 ```
 
-PDF 工作流需要 Python 3.10+，并可通过以下命令安装依赖：
+PDF 工作流需要 Python 3.10+：
 
 ```powershell
 python -m pip install -r requirements-pdf.txt
 ```
 
-调用 MinerU 前，需要设置 `MINERU_API_TOKEN`。不要把真实令牌写入仓库。
+调用 MinerU 前设置环境变量：
 
-## 使用
-
-在 Codex 中直接描述任务，或明确点名技能：
-
-```text
-使用 $fuck-the-class 初始化这门课程。
-使用 $fuck-the-class 把这套试卷入库并重新生成考频分析。
-使用 $pdf-to-markdown 把这个 PDF 转成经过核验的 Obsidian Markdown。
+```powershell
+$env:MINERU_API_TOKEN = "your-token"
 ```
 
-`fuck-the-class` 的主要动作编号为 S0-S9，具体边界和产物以 [`skills/fuck-the-class/SKILL.md`](skills/fuck-the-class/SKILL.md) 为准。PDF 转换的完成门禁以 [`skills/pdf-to-markdown/SKILL.md`](skills/pdf-to-markdown/SKILL.md) 为准。
+不要把真实令牌提交到仓库。
+
+## 仓库结构
+
+```text
+skills/
+  fuck-the-class/
+    SKILL.md                 # 技能入口和全局约束
+    agents/                  # Codex 展示配置
+    references/              # S0-S9 工作流与数据规范
+    scripts/                 # 确定性考频和趋势分析
+    tests/
+  pdf-to-markdown/
+    SKILL.md                 # PDF 转换入口和完成门禁
+    agents/
+    references/              # MinerU、修复和视觉核验规则
+    scripts/                 # 分块、解析、合并、核验和认证
+    tests/
+requirements-pdf.txt
+```
+
+完整执行约束请阅读 [`fuck-the-class/SKILL.md`](skills/fuck-the-class/SKILL.md) 和 [`pdf-to-markdown/SKILL.md`](skills/pdf-to-markdown/SKILL.md)。
 
 ## 测试
 
@@ -73,11 +201,11 @@ python -m unittest discover -s skills\fuck-the-class\tests -v
 python -m unittest discover -s skills\pdf-to-markdown\tests -v
 ```
 
-测试不会替代真实 PDF 转换中的 MinerU、分段文本修复和逐页视觉核验。
+当前测试覆盖考频与趋势分类、输入指纹、标签校验、PDF 分段门禁、图片引用保护、页码覆盖、视觉核验记录和最终证书校验。
 
-## 安全说明
+## 安全边界
 
-- 仓库不包含 MinerU API 令牌或课程原始资料。
-- `00_原材料/` 在 Fuck The Class 工作流中视为只读。
-- PDF 工作流遇到未解决页码范围或视觉不确定性时会停止，不会静默补写内容。
-
+- 仓库不包含课程原始资料、个人做题数据或 MinerU API 令牌。
+- 不确定的内容不会进入不可逆记录，需等待用户确认。
+- PDF 存在缺页、解析失败或视觉不确定性时，流程会停止并报告具体页码。
+- 派生视图可重新生成，不应作为新的事实来源手工维护。
