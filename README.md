@@ -171,7 +171,6 @@ python -m pip install -r requirements-pdf.txt
 $env:MINERU_API_TOKEN = "your-token"
 ```
 
-不要把真实令牌提交到仓库。
 
 ## 仓库结构
 
