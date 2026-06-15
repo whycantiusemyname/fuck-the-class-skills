@@ -1,4 +1,4 @@
 interface:
   display_name: "Fuck The Class"
-  short_description: "Run deterministic exam-cram workflows with certified gates"
-  default_prompt: "Use $fuck-the-class to run the requested exam-cram action with deterministic rendering, hash-bound manifests, PDF completion certificates, and the shared artifact validator."
+  short_description: "University exam prep bound to course scope and evidence"
+  default_prompt: "Use $fuck-the-class to produce understandable university exam preparation that follows the course profile and supplied materials without expanding the curriculum."

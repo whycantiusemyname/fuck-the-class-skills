@@ -16,6 +16,7 @@ Required files:
 - read: `10_题库/_标签库.md`
 - read optional: `40_派生视图/考频矩阵.md`
 - read optional: `40_派生视图/复盘报告.md`
+- read optional: root-level `课程口径.md`
 - write: `40_派生视图/冲刺包.md`
 - write optional: `40_派生视图/模拟卷.md`
 
@@ -32,4 +33,4 @@ Output:
 - `40_派生视图/冲刺包.md`
 - optional clean mock paper
 
-Boundary: reminders must come from the user's records or confirmed blocker cross-checks, not generic advice. S6 consumes starters but never authors solution content.
+Boundary: reminders must come from the user's records or confirmed blocker cross-checks, not generic advice. Use the learning stage only to choose familiar wording and how much prerequisite context to retain. Do not add a concept or method merely because it is common at that stage. S6 consumes starters but never authors solution content.

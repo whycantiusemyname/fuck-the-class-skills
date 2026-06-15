@@ -6,6 +6,7 @@ Use one folder per course:
 
 ```text
 <学科>/
+├── 课程口径.md       # course level, confirmed scope, emphasis, and exclusions
 ├── 00_原材料/        # read-only courseware, scans, homework originals
 ├── 10_题库/          # source of truth: questions, tags, and folded solution blocks (S9)
 │   └── _标签库.md    # controlled tag vocabulary, counts, governance
@@ -28,12 +29,37 @@ Never move existing user files unless the workflow explicitly requires it and th
 S0 creates these files if missing:
 
 ```text
+课程口径.md
 10_题库/_标签库.md
 30_我的数据/做题记录.md
 30_我的数据/卡点清单.md
 ```
 
 Use these minimal templates.
+
+Create `课程口径.md` through `scripts/course_profile.py init`; do not hand-roll a variant. Its required structure is:
+
+```markdown
+# 课程口径
+
+## 学习阶段
+
+未设置
+
+## 已确认教学/考试范围
+
+未设置
+
+## 教师重点与主线/补充关系
+
+未设置
+
+## 明确排除内容
+
+未设置
+```
+
+`学习阶段` is free text and adjusts explanation style and assumed prerequisites only. It never expands scope. Scope precedence is: current user instruction, confirmed range in this file, user-confirmed teacher emphasis, then supplied course materials. When the file is missing in a legacy course, continue without creating it implicitly and use supplied materials as the boundary. The question bank and tag library may show emphasis and naming, but cannot independently authorize theory absent from the confirmed scope or materials.
 
 `10_题库/_标签库.md`:
 
@@ -85,16 +111,16 @@ Use this as the preflight checklist:
 
 | Action | Required input files | Required source files | Output files |
 |---|---|---|---|
-| S0 setup/check | course root | none | full directory tree, `_标签库.md`, `做题记录.md`, `卡点清单.md` |
+| S0 setup/check | course root, optional learning stage and range statements | none | full directory tree, `课程口径.md`, `_标签库.md`, `做题记录.md`, `卡点清单.md` |
 | S1 paper intake | paper/PDF/photo/text source, preferably in `00_原材料/`; for PDF including scanned PDF, verified `90_缓存/pdf-to-markdown/<stem>/completion.json` | `10_题库/_标签库.md`; `20_知识/` optional for chapter mapping | `10_题库/<卷名>题面整理.md`, updated `_标签库.md`, required PDF conversion cache when applicable |
 | S2 frequency analysis | target exam or scope when known | all `10_题库/*.md`, `_标签库.md`; optional `做题记录.md`, `卡点清单.md`, and `20_知识/` | `40_派生视图/考频矩阵.md`, `40_派生视图/主题题表.md` |
 | S3 grading intake | `30_我的数据/inbox/*` screenshots | matching `10_题库/*.md`, `做题记录.md`, optional folded solution blocks under matching questions | appended `做题记录.md`, moved files in `archive/`, optional whole-paper derived report |
 | S4 practice queue | question count `N` | `10_题库/*.md`, `_标签库.md`, `做题记录.md`, `卡点清单.md`, optional `考频矩阵.md` | `40_派生视图/当日队列.md` |
-| S5 mistake review | optional date range | `做题记录.md`, `卡点清单.md`, `10_题库/*.md`, `20_知识/` | `40_派生视图/复盘报告.md`, optional appended `卡点清单.md` |
-| S6 cram pack | exam scope/time if provided | `做题记录.md`, `卡点清单.md`, `10_题库/*.md`, `_标签库.md`, optional `考频矩阵.md` and `复盘报告.md` | `40_派生视图/冲刺包.md`, optional mock paper |
+| S5 mistake review | optional date range | `做题记录.md`, `卡点清单.md`, `10_题库/*.md`, `20_知识/`, optional `课程口径.md` | `40_派生视图/复盘报告.md`, optional appended `卡点清单.md` |
+| S6 cram pack | exam scope/time if provided | `做题记录.md`, `卡点清单.md`, `10_题库/*.md`, `_标签库.md`, optional `课程口径.md`, `考频矩阵.md`, and `复盘报告.md` | `40_派生视图/冲刺包.md`, optional mock paper |
 | S7 dialogue extraction | exported chat `.md`/`.txt` | `卡点清单.md`, `20_知识/`, `_标签库.md` | appended `卡点清单.md`, extraction summary |
-| S8 courseware digest | chapter scope, courseware mapping, and mainline/supplement decisions | source decks, current `20_知识/README.md` when present, existing affected chapter/framework notes, optional `_标签库.md` and `考频矩阵.md` | `20_知识/第XX章_主干重点.md`, synchronized `README.md`, synchronized existing `整体知识框架.md` when affected |
-| S9 verified solutions | selected question anchors, optional reference answers | matching `10_题库/*.md` question surfaces | folded solution blocks written directly under selected questions, unresolved-item list |
+| S8 courseware digest | chapter scope, courseware mapping, and mainline/supplement decisions | source decks, optional `课程口径.md`, current `20_知识/README.md` when present, existing affected chapter/framework notes, optional `_标签库.md` and `考频矩阵.md` | `20_知识/第XX章_主干重点.md`, synchronized `README.md`, synchronized existing `整体知识框架.md` when affected |
+| S9 verified solutions | selected question anchors, optional reference answers | matching `10_题库/*.md` question surfaces, optional `课程口径.md` | folded solution blocks written directly under selected questions, unresolved-item list |
 
 ## Question Anchors
 

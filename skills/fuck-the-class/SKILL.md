@@ -1,15 +1,15 @@
 ---
 name: fuck-the-class
-description: "Exam-cram workflow for turning course folders, PDFs, scans, homework, screenshots, attempts, learning dialogues, question banks, tags, mistakes, and reference answers into controlled question banks, verified solutions, deterministic frequency and trend views, practice queues, grading records, blocker lists, reviews, and cram packs. Use when the user invokes Fuck The Class or asks to initialize or organize a course, ingest papers, classify questions, analyze frequency or recent trend shifts, detect newly hot topics or question-form changes, grade work, digest courseware, extract blockers, verify solutions, generate practice, review mistakes, or make a cram pack. Also use for 应试冲刺, 新学科初始化, 课程文件夹整理, 试卷入库, 题型分类, 考频分析, 趋势预警, 近期热点, 题型变化, 考法迁移, 批改截图, 学习对话提取, 卡点清单, 课件梳理, 章节梳理, 配解答, 核验解答, 出题队列, 错因复盘, and 冲刺包."
+description: "Fast, understandable, source-bound exam-cram workflow for turning course folders, PDFs, scans, homework, screenshots, attempts, learning dialogues, question banks, tags, mistakes, and reference answers into controlled question banks, verified solutions, deterministic frequency and trend views, practice queues, grading records, blocker lists, reviews, and cram packs without expanding beyond the confirmed course scope. Use when the user invokes Fuck The Class or asks to initialize or organize a course, ingest papers, classify questions, analyze frequency or recent trend shifts, detect newly hot topics or question-form changes, grade work, digest courseware, extract blockers, verify solutions, generate practice, review mistakes, or make a cram pack. Also use for 应试冲刺, 快速理解课程, 新学科初始化, 课程文件夹整理, 试卷入库, 题型分类, 考频分析, 趋势预警, 近期热点, 题型变化, 考法迁移, 批改截图, 学习对话提取, 卡点清单, 课件梳理, 章节梳理, 配解答, 核验解答, 出题队列, 错因复盘, and 冲刺包."
 ---
 
 # Fuck The Class
 
 ## Overview
 
-Use this skill to run one exam-prep action at a time for a course. The user controls the rhythm; the skill performs the requested action, writes the requested artifact, reports what changed, and stops.
+Use this skill to run one exam-prep action at a time for a course. Optimize for fast exam gains and fast understanding: expose what to recognize, remember, do first, and check, then explain the idea with enough intuition and intermediate reasoning to make it genuinely understandable. Fast understanding means low cognitive friction, not minimum word count. The user controls the rhythm; the skill performs the requested action, writes the requested artifact, reports what changed, and stops.
 
-This skill is course-agnostic but assumes a controlled local folder: raw course materials, question-bank source files, user attempt records, and derived review views are separated so future work has a single source of truth.
+This skill serves university learners across undergraduate and graduate courses. It is course-agnostic and assumes a controlled local folder: raw course materials, question-bank source files, user attempt records, and derived review views are separated so future work has a single source of truth.
 
 ## Start Every Task
 
@@ -27,7 +27,8 @@ This skill is course-agnostic but assumes a controlled local folder: raw course 
    - S9 verified solutions: add checked solutions as folded callout blocks under selected questions in `10_题库/`.
    - setup/check: alias for S0.
 3. Read [references/schema-and-rules.md](./references/schema-and-rules.md) before writing or validating any course artifact.
-4. Read only the workflow for the selected action; for a user-requested combined operation, read each selected workflow:
+4. Read `<course-root>/课程口径.md` when present. Apply scope and explanation guidance in this order: the current user instruction, confirmed teaching/exam scope, user-confirmed teacher emphasis, then the supplied course materials. `学习阶段` adjusts explanation and assumed prerequisites only; it never expands the curricular boundary. If the file is absent, continue in legacy-compatible mode and use the supplied materials as the boundary.
+5. Read only the workflow for the selected action; for a user-requested combined operation, read each selected workflow:
    - S0: [workflow-s0-course-setup.md](./references/workflow-s0-course-setup.md)
    - S1: [workflow-s1-paper-intake.md](./references/workflow-s1-paper-intake.md)
    - S2: [workflow-s2-frequency-analysis.md](./references/workflow-s2-frequency-analysis.md)
@@ -38,13 +39,15 @@ This skill is course-agnostic but assumes a controlled local folder: raw course 
    - S7: [workflow-s7-dialogue-extraction.md](./references/workflow-s7-dialogue-extraction.md)
    - S8: [workflow-s8-courseware-digest.md](./references/workflow-s8-courseware-digest.md)
    - S9: [workflow-s9-verified-solutions.md](./references/workflow-s9-verified-solutions.md)
-5. Read [references/pdf-ingestion.md](./references/pdf-ingestion.md) when a PDF, PPT/PPTX deck, scanned paper, or converted Markdown from a PDF is involved.
+6. Read [references/pdf-ingestion.md](./references/pdf-ingestion.md) when a PDF, PPT/PPTX deck, scanned paper, or converted Markdown from a PDF is involved.
 
 ## Non-Negotiables
 
 - Keep the user in control of pacing. Do not create schedules, daily plans, or "tomorrow" recommendations unless the user asks for that specific artifact.
 - Preserve single sources of truth: questions, tags, and folded solution blocks live in `10_题库/`; attempt records live in `30_我的数据/做题记录.md`; derived views live in `40_派生视图/`.
 - Treat `00_原材料/` as read-only.
+- Keep learning and review artifacts exam-oriented and easy to understand. Organize them around tested concepts, recognition cues, first moves, formula conditions, and common errors, using the course's familiar language. Never compress away prerequisites, reasoning bridges, examples, or formula conditions needed for understanding. Concision is secondary to clarity; explanation may be as long as necessary while remaining structured and easy to navigate.
+- Stay inside the current course scope. Do not introduce theories, notation, proof machinery, or terminology absent from the source materials and confirmed teacher/exam scope. Plain-language analogies may clarify existing material, but must not add curricular content. When scope is uncertain, omit the material and report it for confirmation. Question-bank frequency may prioritize an in-scope topic but cannot authorize new theory by itself.
 - Never transcribe handwritten work into long-form text. Handwritten screenshots are evidence files; text records contain only the AI-generated judgement, wrong-cause label, one-sentence diagnosis, and screenshot link.
 - Use controlled vocabularies. Do not invent judgement labels, wrong-cause labels, or question-type tags during execution; follow the tag governance rules when a new tag is truly needed.
 - Mark every derived view with `> 派生文件，可重新生成，勿手改。` at the top and regenerate the whole file instead of hand-editing fragments.

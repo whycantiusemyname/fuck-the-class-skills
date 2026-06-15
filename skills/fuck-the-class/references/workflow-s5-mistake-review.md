@@ -13,6 +13,7 @@ Required files:
 - read/write: `30_我的数据/卡点清单.md`
 - read: `10_题库/*.md`
 - read optional: `20_知识/`
+- read optional: root-level `课程口径.md`
 - write: `40_派生视图/复盘报告.md`
 
 Steps:
@@ -24,6 +25,7 @@ Steps:
    - `起手错` or `没思路`: starter-drill list for S4.
    - `概念错`: link to matching `20_知识/` chapter notes and update `卡点清单.md`.
    - `审题错`: extract short check sentences tied to observed mistakes.
+   Use the course profile's learning stage only to adjust how much prerequisite explanation the prescription needs. Keep every concept recommendation inside the confirmed scope or supplied materials; if no profile exists, use the materials as the boundary.
 4. Run `卡点交叉`: compare `概念错` question types with `卡点清单.md`. Mark items present in both places as `确认顽固弱点` and list them separately.
 5. List repeatedly failed red types as `放弃候选` or `重点攻坚候选`.
 

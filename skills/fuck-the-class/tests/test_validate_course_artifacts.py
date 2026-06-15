@@ -65,6 +65,18 @@ class ValidateCourseArtifactsTests(unittest.TestCase):
         self.assertEqual(errors, [])
         self.assertTrue(any("疑似裸数学表达" in warning for warning in warnings))
 
+    def test_missing_course_profile_is_compatible_but_malformed_profile_blocks(self):
+        source = self.root / "10_题库" / "卷.md"
+        source.write_text("# 卷\n", encoding="utf-8")
+        errors, _, _ = validator.validate(self.root, "s1")
+        self.assertEqual(errors, [])
+        (self.root / "课程口径.md").write_text(
+            "# 课程口径\n\n## 学习阶段\n\n大二\n",
+            encoding="utf-8",
+        )
+        errors, _, _ = validator.validate(self.root, "s1")
+        self.assertTrue(any("课程口径缺少章节" in error for error in errors))
+
     def test_quote_evidence_verification(self):
         source = self.root / "20_知识" / "对话.md"
         source.write_text("第一行\n最终讲通的话\n第三行\n", encoding="utf-8")

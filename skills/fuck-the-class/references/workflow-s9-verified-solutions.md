@@ -7,6 +7,7 @@ Inputs:
 - course root
 - anchor scope (e.g. "all questions in today's queue", "1-2 questions per top-20 high-frequency type")
 - optional reference answers: many paper scans carry a QR code linking to official/reference answers — the user scans and provides them as images or text; if QR images already exist in OCR artifacts, decoding them is allowed
+- optional root-level `课程口径.md`
 
 Required files:
 
@@ -19,6 +20,7 @@ Steps:
 1. Refuse selected questions marked `ocr_status: 待复核`; route them to S1 source verification before solving.
 2. With a reference answer: solve independently first → compare → if they agree, finalize. If they disagree, solve a second time and adjudicate whether the error is yours or the reference's (reference answers are NOT guaranteed correct); state the evidence for the verdict. Still unsure → mark `存疑` and leave it for the user.
 3. Without a reference answer: solve once, then self-check key steps (special-case substitution, reverse verification, magnitude/dimension checks); explicitly mark any step that cannot be self-verified.
+   Use the learning stage only to decide how fully to explain prerequisites and intermediate steps. Keep the method inside the confirmed course scope or supplied materials; if the required method's scope is uncertain, mark the solution `存疑` instead of importing an outside method.
 4. Write each solution as a folded callout block directly under its question (format in `schema-and-rules.md` → Solution Blocks), collapsed by default so the question surface stays clean.
 5. Title line carries the status: `已对照一致` / `与参考答案不一致（已裁决）` / `独立解答未对照` / `存疑`.
 6. Every block ends with a one-line correct first move (consumed directly by the S6 保底清单).

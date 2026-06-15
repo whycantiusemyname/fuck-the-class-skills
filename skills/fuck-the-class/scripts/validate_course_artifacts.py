@@ -11,6 +11,7 @@ from pathlib import Path
 from urllib.parse import unquote
 
 import render_frequency_views as renderer
+import course_profile
 
 
 CONTROL_RE = re.compile(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]")
@@ -340,6 +341,12 @@ def validate(course_root: Path, scope: str) -> tuple[list[str], list[str], dict[
         bare_math.extend(bare_math_warnings(path, text))
     links = link_issues(course_root, files)
     errors = [*control, *latex, *links, *derived_marker_issues(course_root, files)]
+    profile_path = course_profile.profile_path(course_root)
+    if profile_path.exists():
+        try:
+            course_profile.parse_profile(profile_path)
+        except course_profile.CourseProfileError as exc:
+            errors.append(str(exc))
     if scope in {"s2", "all"}:
         errors.extend(s2_issues(course_root))
     if scope in {"s7", "all"}:
