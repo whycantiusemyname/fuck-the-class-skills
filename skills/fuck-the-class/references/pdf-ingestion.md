@@ -55,6 +55,7 @@ S8 may delegate the same way when useful, but it must use the same certificate g
 - Missing, invalid, incomplete, mismatched, blocked, or unresolved completion data fails the gate. Stop ingestion and report the exact blocker without initiating a fallback.
 - Preserve raw source files in `00_原材料/`; write cleaned question-bank files only under `10_题库/`.
 - Keep conversion artifacts out of the user's review surface unless the user asks to inspect them.
+- Retain conversion evidence required by `verify_completion.py`. Presence in the cache never makes an artifact consumable: S1/S8 may consume only the current `completion.json.final_markdown` after verification. Treat unrelated tool caches as separately owned and remove them only after confirming no active workflow references them.
 - Never create, patch, or reinterpret `completion.json` in S1. Only the `$pdf-to-markdown` finalizer writes it.
 - Do not treat a short agent wait timeout, absent final output, or a long page-reading interval as conversion failure. Use the coordination gate below.
 
@@ -79,7 +80,7 @@ While the child agent status is `running`:
 
 1. Keep the parent read-only for the conversion cache. Do not write `verified/`, `reviews/`, `workflow_state.json`, the final Markdown, or `completion.json`; do not run finalization.
 2. Use waits measured in minutes for page-by-page review. A 10-second timeout is only a status probe and cannot justify takeover.
-3. After a wait timeout, inspect the child status and segment checkpoint count. If either advanced, continue waiting.
+3. After a wait timeout, inspect the child status and segment checkpoint count. Use `probe_pdf_progress.py snapshot` before and after the interval and `probe_pdf_progress.py compare`; a timestamp change alone is not substantive progress. If status, completed segments, or reviewed-page coverage advanced, continue waiting.
 4. If neither advanced, send one concise status request and wait through a second multi-minute interval.
 5. Only after two consecutive no-progress checks and no substantive child response may the parent request interruption or closure. If the child still cannot be confirmed stopped, report the conversion as blocked instead of writing concurrently.
 
@@ -96,6 +97,8 @@ The parent may become the conversion executor only when one of these is true:
 On handoff, preserve completed segment checkpoints, inspect the last review record, and continue from the first incomplete segment. Never redo or overwrite completed child work without a source-backed reason. Once handed off, the parent must finish the same `$pdf-to-markdown` gates before S1 consumes the result.
 
 After child success, wait for its final agent status before running the independent completion verifier. Natural-language progress or success messages never replace the on-disk certificate.
+
+The progress probe is read-only evidence. It never grants ownership, finalizes the child workflow, or shortens the two-interval handoff rule.
 
 ## Gate 1: Conversion Certificate
 

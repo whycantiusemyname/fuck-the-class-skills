@@ -29,6 +29,13 @@ Required files:
 3. Stop if the command returns nonzero or JSON `status` is not `complete`. Report the exact parser, anchor, tag-count, or theme-mapping errors; do not create new derived views.
 4. Before consuming an existing JSON, run the same script with `--verify <json-path>`. Reject stale input fingerprints.
 5. Treat the script as authoritative for metadata parsing, legacy question-form inference, academic-year buckets, A/B paper merging, score handling, trend labels, form shifts, and method migration. Do not recalculate these with ad hoc shell or model logic.
+6. Run the deterministic renderer:
+
+   ```text
+   python <skill>/scripts/render_frequency_views.py --course-root <course-root> --analysis <course-root>/90_缓存/s2-frequency-analysis.json
+   ```
+
+7. Run the renderer again with `--verify`, then run `validate_course_artifacts.py --scope s2`. Either nonzero exit blocks completion. Do not write, rewrite, or polish either Markdown view outside the renderer.
 
 ## Interpretation Rules
 
@@ -43,7 +50,7 @@ Required files:
 
 ## `考频矩阵.md`
 
-Regenerate the whole file in this order:
+The renderer regenerates the whole file in this order:
 
 1. `一眼看重点`
 2. `趋势预警`
@@ -56,7 +63,7 @@ Regenerate the whole file in this order:
 Requirements:
 
 - Start with the exact derived marker from `schema-and-rules.md`.
-- Put native Obsidian Mermaid charts first: historical vs recent coverage, coverage change in percentage points, and known-score burden.
+- Put native Obsidian Mermaid charts first: historical vs recent coverage, coverage change in percentage points, and known-score burden. Chart axes use stable `T1...Tn` identifiers; the folded evidence table maps every identifier to the full theme name.
 - Follow each chart with the same values in a collapsed `[!info]-` table.
 - Keep every Markdown table in both S2 outputs inside a collapsed `[!info]-` callout. Keep headings, charts, warnings, and judgements visible.
 - Split `趋势预警` by exam population. Prioritize `首次成势`, `沉寂后回归`, `新近升温`, `大题化`, `考法迁移`, and `明显降温`; show at most eight visible items per category and fold the remainder into the complete trend table.
@@ -66,7 +73,7 @@ Requirements:
 
 ## `主题题表.md`
 
-Give every capability theme one stable, unique heading using the exact controlled theme name. For each exam population, show:
+The renderer gives every capability theme one stable, unique heading using the exact controlled theme name. For each exam population, show:
 
 - objective exam role;
 - primary and secondary trends;
@@ -75,7 +82,7 @@ Give every capability theme one stable, unique heading using the exact controlle
 - historical dominant tag to recent dominant tag;
 - one historical representative and up to two recent representatives from the JSON.
 
-Use vault-root-relative links for every theme and question. Add a one-line starter only when supported by `20_知识/` or a verified solution block; S2 must not solve questions to fill the table.
+Use vault-root-relative links for every theme and question. Add a one-line starter only when it comes from a non-`存疑` S9 solution block. S2 must not solve questions or paraphrase a knowledge note to fill a missing starter.
 
 Output:
 
@@ -83,4 +90,4 @@ Output:
 - `40_派生视图/考频矩阵.md` — importance, trend warnings, judgements, and folded evidence
 - `40_派生视图/主题题表.md` — theme navigation with historical and recent representatives
 
-Boundary: S2 reads source data and writes only its cache and derived views. It must not repair question metadata, tags, counts, theme mappings, question text, or solutions; route those changes to S1.
+Boundary: S2 reads source data and writes only its cache and derived views. The analysis script owns evidence and classifications; the renderer owns both Markdown files. The executing Agent may not add free-form rows or judgements after rendering. S2 must not repair question metadata, tags, counts, theme mappings, question text, or solutions; route those changes to S1.

@@ -11,11 +11,12 @@ import statistics
 import sys
 from collections import Counter, defaultdict
 from dataclasses import dataclass
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any, Iterable
 
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "2.0"
 QUESTION_FORMS = {
     "选择题",
     "填空题",
@@ -44,6 +45,8 @@ TREND_PRIORITY = {
     "平稳观察": 7,
     "样本不足": 8,
 }
+OCR_STATUSES = {"待复核", "已做结构修复", "已对照 PDF 复核"}
+WARMING_TRENDS = {"首次成势", "沉寂后回归", "新近升温"}
 
 
 class AnalysisBlocked(Exception):
@@ -75,6 +78,8 @@ class Question:
     score: float | None
     question_form: str
     form_source: str
+    ocr_status: str
+    ocr_status_source: str
 
     @property
     def paper_key(self) -> str:
@@ -83,6 +88,12 @@ class Question:
 
 def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8-sig")
+
+
+def round_half_up(value: float | int | Decimal, digits: int = 0) -> float | int:
+    quantum = Decimal("1").scaleb(-digits)
+    rounded = Decimal(str(value)).quantize(quantum, rounding=ROUND_HALF_UP)
+    return int(rounded) if digits == 0 else float(rounded)
 
 
 def parse_metadata_block(lines: list[str], heading_index: int) -> dict[str, str] | None:
@@ -182,12 +193,20 @@ def parse_question_files(course_root: Path, definitions: dict[str, TagDefinition
     for path in files:
         lines = read_text(path).splitlines()
         paper_metadata: dict[str, str] = {}
-        for index, line in enumerate(lines):
-            if re.match(r"^#\s+", line):
-                paper_metadata = parse_metadata_block(lines, index) or {}
-                break
+        paper_heading_index: int | None = None
+        first_heading_index = next(
+            (index for index, line in enumerate(lines) if re.match(r"^#{1,6}\s+", line)),
+            None,
+        )
+        if first_heading_index is not None:
+            candidate = parse_metadata_block(lines, first_heading_index) or {}
+            if {"paper_type", "academic_year", "source"} & candidate.keys():
+                paper_metadata = candidate
+                paper_heading_index = first_heading_index
 
         for index, line in enumerate(lines):
+            if index == paper_heading_index:
+                continue
             match = re.match(r"^###\s+(.+?)\s*$", line)
             if not match:
                 continue
@@ -219,6 +238,11 @@ def parse_question_files(course_root: Path, definitions: dict[str, TagDefinition
             except ValueError as exc:
                 errors.append(f"{path.name}#{anchor} {exc}")
                 continue
+            explicit_ocr = metadata.get("ocr_status", "").strip()
+            if explicit_ocr and explicit_ocr not in OCR_STATUSES:
+                errors.append(f"{path.name}#{anchor} 非法 ocr_status：{explicit_ocr}")
+                continue
+            ocr_status = explicit_ocr or "已做结构修复"
             questions.append(
                 Question(
                     file=path.stem,
@@ -233,6 +257,8 @@ def parse_question_files(course_root: Path, definitions: dict[str, TagDefinition
                     score=parse_score(metadata.get("score")),
                     question_form=question_form,
                     form_source=form_source,
+                    ocr_status=ocr_status,
+                    ocr_status_source="explicit" if explicit_ocr else "legacy_default",
                 )
             )
 
@@ -400,6 +426,22 @@ def classify_size_shift(historical: dict[str, Any], recent: dict[str, Any]) -> l
     return labels
 
 
+def classify_importance_role(recent: dict[str, Any], primary_trend: str) -> str:
+    recent_rate = recent.get("coverage_rate") or 0.0
+    recent_median = recent.get("median_score")
+    if recent_rate == 0:
+        return "该卷型未覆盖"
+    if recent_rate >= 0.75 and recent_median is not None and recent_median >= 8:
+        return "高分杠杆"
+    if recent_rate >= 0.75:
+        return "高频主力"
+    if recent_rate >= 0.5:
+        return "中频主干"
+    if primary_trend in WARMING_TRENDS:
+        return "低频风险"
+    return "低频观察"
+
+
 def equal_weight_tag_distribution(entity_questions: list[Question], period_papers: set[str]) -> dict[str, float]:
     per_paper: list[Counter[str]] = []
     for paper_key in sorted(period_papers):
@@ -564,6 +606,7 @@ def build_exam_profile(
 
     present_run, absent_run = consecutive_counts(full_series)
     known_years = sorted({question.year_start for question in scoped if question.year_start is not None})
+    importance_role = classify_importance_role(recent, primary)
     return {
         "paper_type": paper_type,
         "recent_start_year": f"{recent_start:04d}-{recent_start + 1:04d}" if latest_year is not None else None,
@@ -578,6 +621,7 @@ def build_exam_profile(
         "transition_count": transition_count(full_series),
         "primary_trend": primary,
         "trend_priority": TREND_PRIORITY[primary],
+        "importance_role": importance_role,
         "secondary_trends": secondary,
         "tag_change": tag_change,
         "representatives": choose_representatives(scoped, recent_start) if latest_year is not None else {"historical": [], "recent": []},
@@ -624,6 +668,8 @@ def build_analysis(course_root: Path, recent_span: int) -> dict[str, Any]:
 
     unknown_year_papers = sorted({question.paper_key for question in questions if question.year_start is None})
     form_sources = Counter(question.form_source for question in questions)
+    ocr_sources = Counter(question.ocr_status_source for question in questions)
+    ocr_statuses = Counter(question.ocr_status for question in questions)
     if unknown_year_papers:
         warnings.append(f"{len(unknown_year_papers)} 份试卷缺少可用学年，只参加总频次")
     if form_sources.get("unknown", 0):
@@ -678,6 +724,9 @@ def build_analysis(course_root: Path, recent_span: int) -> dict[str, Any]:
             "question_form_explicit": form_sources.get("explicit", 0),
             "question_form_inferred": form_sources.get("anchor", 0),
             "question_form_unknown": form_sources.get("unknown", 0),
+            "ocr_status_explicit": ocr_sources.get("explicit", 0),
+            "ocr_status_legacy_default": ocr_sources.get("legacy_default", 0),
+            "ocr_status_counts": dict(sorted(ocr_statuses.items())),
             "unknown_year_paper_count": len(unknown_year_papers),
             "unknown_year_papers": unknown_year_papers,
             "tag_count_matches": True,
@@ -717,6 +766,9 @@ def verify_existing(course_root: Path, analysis_path: Path) -> int:
     payload = json.loads(read_text(analysis_path))
     if payload.get("status") != "complete":
         print("analysis status is not complete", file=sys.stderr)
+        return 3
+    if payload.get("schema_version") != SCHEMA_VERSION:
+        print(f"analysis schema is stale: {payload.get('schema_version')} != {SCHEMA_VERSION}", file=sys.stderr)
         return 3
     current, _ = calculate_input_fingerprint(course_root)
     if current != payload.get("input_fingerprint"):

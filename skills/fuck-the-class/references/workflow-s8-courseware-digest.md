@@ -20,7 +20,7 @@ Required files:
 Steps:
 
 1. Convert decks through cached conversion under `90_缓存/` per `pdf-ingestion.md`; never manipulate the user's open Office windows.
-2. Quality bar: match the depth, length, and prose density of the golden sample `D:\FuckTheClass\电路分析\10_工作区\章节梳理\第06章_晶体管放大电路基础_主干重点.md` (a validated hand-built note). The fixed structure below is a floor, not a checklist to satisfy minimally — every section must be readable on its own.
+2. Quality bar: write a self-contained guided first read, not a slide inventory. The fixed structure below is a floor, not a checklist to satisfy minimally: every section must be readable on its own, the intuition section must explain the chapter's problem and neighboring-chapter role, and every formula must retain its conditions and symbol meanings. Do not depend on a cross-course absolute-path golden sample.
 3. Write one note per chapter with this fixed structure:
    - 这一章抓什么: review-priority list.
    - 阅读层次表: 2-4 reading layers (e.g. intuition / model / application).
@@ -35,6 +35,8 @@ Steps:
 6. Formatting discipline: inline LaTeX for single-line formulas; display blocks only for multi-line derivations or centerpiece formulas; blockquotes must fully wrap their content; keep symbols consistent across the whole note and flag conflicts between decks, following the newer deck.
 7. Maintain `20_知识/README.md`: chapter-to-deck mapping, mainline/supplement hierarchy, suggested first-read order. After changing a chapter note, inspect the README and update every affected entry; if no edit is needed, report it as checked and unchanged.
 8. Maintain the cross-chapter framework when `20_知识/整体知识框架.md` already exists or the user requests one: refresh every section affected by the changed chapter notes. If it does not exist and was not requested, do not create it implicitly.
+9. Run `validate_course_artifacts.py --scope s8`.
+10. Run `s8_digest_gate.py bind` with every source deck/PDF, every applicable PDF completion certificate, and every changed chapter note/README/framework output. On an intentional refresh, use `--replace`. Finish by running `s8_digest_gate.py verify`.
 
 Output:
 
@@ -42,4 +44,4 @@ Output:
 - synchronized or checked-unchanged `20_知识/README.md`
 - optional `20_知识/整体知识框架.md`
 
-Boundary: do not invent exercises. Question ingestion belongs to S1, and full worked solutions belong to S9. Do not paste long verbatim runs of the deck. Formulas must agree with the decks; when decks contradict each other, point it out and follow the newer version. Do not claim S8 complete while an existing README or framework still contains content made stale by the changed chapter notes.
+Boundary: do not invent exercises. Question ingestion belongs to S1, and full worked solutions belong to S9. Do not paste long verbatim runs of the deck. Formulas must agree with the decks; when decks contradict each other, point it out and follow the newer version. Do not claim S8 complete while an existing README or framework still contains content made stale by the changed chapter notes, or while its digest manifest is absent or stale.

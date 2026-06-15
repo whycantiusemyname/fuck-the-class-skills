@@ -50,11 +50,12 @@ This skill is course-agnostic but assumes a controlled local folder: raw course 
 - Mark every derived view with `> 派生文件，可重新生成，勿手改。` at the top and regenerate the whole file instead of hand-editing fragments.
 - Before any S1-S9 workflow, check the required files for that action. If the course has not been initialized, run S0 first or create only the missing action-specific seed files allowed by `schema-and-rules.md`, then report exactly what was created.
 - Respect write boundaries: S1 owns question text, anchors, and tags under `10_题库/` and updates `_标签库.md`; S9 may only add or update folded solution blocks under questions; S3 may append `做题记录.md` and move processed inbox images to `archive/`; S5 and S7 may append concept blockers to `卡点清单.md`; S8 may write `20_知识/`; S2/S4/S5/S6 write derived outputs and otherwise read source data.
-- For S2, run `scripts/analyze_frequency_trends.py` and consume its hash-bound JSON. Do not reimplement parsing, capability-theme aggregation, time windows, or trend thresholds ad hoc. S2 must remain read-only for `10_题库/` and `_标签库.md`; route source-data repairs to S1.
+- For S2, run `scripts/analyze_frequency_trends.py`, then `scripts/render_frequency_views.py`; verify both the input fingerprint and byte-for-byte rendered views. Do not reimplement parsing, classifications, rendering, time windows, or trend thresholds ad hoc. S2 must remain read-only for `10_题库/` and `_标签库.md`; route source-data repairs to S1.
 - For S7, preserve final explanation excerpts verbatim. Do not polish, paraphrase, summarize, or "make it clearer" when the workflow asks for an original quote.
 - Do not manipulate the user's open Office or PowerPoint windows. For slides or documents, work from copies, cached conversions, or headless tools only when needed.
 - If evidence is uncertain, say so and keep the uncertain item out of irreversible records until the user confirms.
-- Before reporting completion of any file-writing action, run the Output Self-Check in [references/schema-and-rules.md](./references/schema-and-rules.md) (control characters, LaTeX corruption, broken links) and include its one-line result in the report.
+- Before reporting completion of any file-writing action, run `scripts/validate_course_artifacts.py` with the selected workflow scope and include its one-line result. A prose claim or improvised scan does not replace the gate.
+- Treat workflow manifests as completion evidence: S1 PDF intake requires a verified `s1-intake` manifest, S3 requires a complete grading batch, and S8 requires a current digest manifest. Do not report those workflows complete from files alone.
 
 ## PDF Dependency
 

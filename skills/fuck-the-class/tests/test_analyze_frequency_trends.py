@@ -35,7 +35,7 @@ class FrequencyTrendTests(unittest.TestCase):
         body.extend(f"| {chapter} | {theme} | `{tag}` | {count} |" for chapter, theme, tag, count in rows)
         (self.root / "10_题库" / "_标签库.md").write_text("\n".join(body) + "\n", encoding="utf-8")
 
-    def write_paper(self, filename, source, questions, paper_type=None, academic_year=None):
+    def write_paper(self, filename, source, questions, paper_type=None, academic_year=None, heading_level=1):
         meta = ["%%", "chapter: 综合", "question_type: 真题整卷"]
         meta.append(f"source: {source}")
         if paper_type:
@@ -43,7 +43,7 @@ class FrequencyTrendTests(unittest.TestCase):
         if academic_year:
             meta.append(f"academic_year: {academic_year}")
         meta.append("%%")
-        lines = [f"# {source}", "", *meta, ""]
+        lines = [f"{'#' * heading_level} {source}", "", *meta, ""]
         for question in questions:
             lines.extend([f"### {question['anchor']}", "", "%%"])
             lines.append(f"chapter: {question.get('chapter', '第一章')}")
@@ -53,6 +53,8 @@ class FrequencyTrendTests(unittest.TestCase):
                 lines.append(f"score: {question['score']}")
             if "question_form" in question:
                 lines.append(f"question_form: {question['question_form']}")
+            if "ocr_status" in question:
+                lines.append(f"ocr_status: {question['ocr_status']}")
             lines.extend(["%%", "", "题面", ""])
         (self.root / "10_题库" / filename).write_text("\n".join(lines), encoding="utf-8")
 
@@ -70,6 +72,77 @@ class FrequencyTrendTests(unittest.TestCase):
         questions, _ = MODULE.parse_question_files(self.root, definitions)
         self.assertEqual([question.question_form for question in questions], ["证明题", "计算题"])
         self.assertEqual([question.form_source for question in questions], ["explicit", "anchor"])
+
+    def test_h1_through_h6_document_metadata(self):
+        for level in range(1, 7):
+            with self.subTest(level=level):
+                with tempfile.TemporaryDirectory() as temp:
+                    root = Path(temp)
+                    (root / "10_题库").mkdir(parents=True)
+                    old_root, self.root = self.root, root
+                    try:
+                        self.write_tags([("第一章", "主题A", "标签A", 1)])
+                        self.write_paper(
+                            "未知来源_题面整理.md",
+                            "无年份来源",
+                            [{"anchor": f"L{level}-选1", "tag": "标签A"}],
+                            paper_type="期末",
+                            academic_year="2024-2025",
+                            heading_level=level,
+                        )
+                        result = MODULE.build_analysis(root, 5)
+                        paper = result["paper_series"][0]
+                        self.assertEqual(paper["paper_type"], "期末")
+                        self.assertEqual(paper["academic_year"], "2024-2025")
+                    finally:
+                        self.root = old_root
+
+    def test_nonadjacent_document_metadata_is_not_read(self):
+        self.write_tags([("第一章", "主题A", "标签A", 1)])
+        path = self.root / "10_题库" / "未知_题面整理.md"
+        path.write_text(
+            "# 无年份来源\n\n说明文字\n\n%%\npaper_type: 期末\nacademic_year: 2024-2025\n%%\n\n"
+            "### 未知-选1\n\n%%\nchapter: 第一章\nquestion_type: 标签A\nsource: 无年份来源\n%%\n",
+            encoding="utf-8",
+        )
+        result = MODULE.build_analysis(self.root, 5)
+        self.assertEqual(result["paper_series"][0]["paper_type"], "其他")
+        self.assertIsNone(result["paper_series"][0]["academic_year"])
+
+    def test_ocr_status_validation_and_legacy_default(self):
+        self.write_tags([("第一章", "主题A", "标签A", 2)])
+        self.write_paper(
+            "卷_题面整理.md",
+            "2020-2021期末",
+            [
+                {"anchor": "卷-选1", "tag": "标签A", "ocr_status": "已对照 PDF 复核"},
+                {"anchor": "卷-选2", "tag": "标签A"},
+            ],
+        )
+        result = MODULE.build_analysis(self.root, 5)
+        self.assertEqual(result["quality"]["ocr_status_explicit"], 1)
+        self.assertEqual(result["quality"]["ocr_status_legacy_default"], 1)
+        path = self.root / "10_题库" / "卷_题面整理.md"
+        path.write_text(path.read_text(encoding="utf-8").replace("已对照 PDF 复核", "随便写的状态"), encoding="utf-8")
+        with self.assertRaises(MODULE.AnalysisBlocked):
+            MODULE.build_analysis(self.root, 5)
+
+    def test_importance_role_and_half_up_rounding(self):
+        self.assertEqual(MODULE.round_half_up(-37.5), -38)
+        self.assertEqual(MODULE.round_half_up(12.5), 13)
+        self.assertEqual(MODULE.round_half_up(0.375 * 100), 38)
+        historical = {"coverage_rate": 0.75, "year_count": 3, "coverage_numerator": 2}
+        recent = {"coverage_rate": 0.75, "year_count": 3, "coverage_numerator": 3}
+        self.assertEqual(
+            MODULE.classify_primary_trend(historical, recent, [{"present": True}] * 3),
+            "稳定核心",
+        )
+        self.assertEqual(MODULE.classify_importance_role({"coverage_rate": 0, "median_score": None}, "平稳观察"), "该卷型未覆盖")
+        self.assertEqual(MODULE.classify_importance_role({"coverage_rate": 0.75, "median_score": 8}, "稳定核心"), "高分杠杆")
+        self.assertEqual(MODULE.classify_importance_role({"coverage_rate": 0.75, "median_score": 3}, "稳定核心"), "高频主力")
+        self.assertEqual(MODULE.classify_importance_role({"coverage_rate": 0.5, "median_score": 3}, "平稳观察"), "中频主干")
+        self.assertEqual(MODULE.classify_importance_role({"coverage_rate": 0.25, "median_score": 3}, "新近升温"), "低频风险")
+        self.assertEqual(MODULE.classify_importance_role({"coverage_rate": 0.25, "median_score": 3}, "平稳观察"), "低频观察")
 
     def test_duplicate_unknown_tag_and_count_mismatch_block(self):
         self.write_tags([("第一章", "主题A", "标签A", 2)])

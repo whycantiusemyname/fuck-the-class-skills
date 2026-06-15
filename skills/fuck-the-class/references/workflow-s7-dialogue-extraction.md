@@ -26,8 +26,9 @@ Steps:
 3. For each item, attach a chapter label and, when possible, a `_标签库.md` question-type tag.
 4. Compare against `20_知识/`; skip ordinary knowledge summaries and explanations that duplicate existing notes.
 5. Append accepted items under the matching chapter in `30_我的数据/卡点清单.md`.
-6. For final explanations, paste the original excerpt as a quote block exactly as exported.
-7. Report extraction counts by item type and list any items skipped because they duplicated `20_知识/` or lacked enough evidence.
+6. For final explanations, paste the original excerpt as a quote block exactly as exported. Record `quote_source`, the source file SHA-256, exact 1-based `quote_lines`, and the quote SHA-256 using the schema format.
+7. Run `validate_course_artifacts.py --scope s7`; any source-hash, line-range, quote-hash, or verbatim-text mismatch blocks the append.
+8. Report extraction counts by item type and list any items skipped because they duplicated `20_知识/` or lacked enough evidence.
 
 Output:
 

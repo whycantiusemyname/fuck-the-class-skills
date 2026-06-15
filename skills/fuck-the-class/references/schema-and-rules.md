@@ -128,10 +128,11 @@ question_type: 二重积分｜极坐标
 source: 2024-2025期中
 score: 8
 question_form: 计算题
+ocr_status: 已对照 PDF 复核
 %%
 ```
 
-Required fields are `chapter` and `question_type`. New S1 intake must also write `question_form`; older entries may omit it and use the compatibility inference below. Keep optional fields short and factual.
+Required fields are `chapter` and `question_type`. New S1 intake must also write `question_form` and `ocr_status`; older entries may omit them and use the compatibility rules below. Keep optional fields short and factual.
 
 `question_form` uses this closed vocabulary:
 
@@ -145,6 +146,14 @@ Required fields are `chapter` and `question_type`. New S1 intake must also write
 - `未判定`
 
 For older entries, resolve question form in this fixed order: explicit `question_form`, then anchor inference (`-选` / `-填` / `-算` / `-证` / `-应`), then `未判定`. Never infer form from score.
+
+`ocr_status` uses this closed vocabulary:
+
+- `待复核`: a concrete OCR, figure, formula, or source uncertainty remains. S4 and S9 must not consume the question by default.
+- `已做结构修复`: no known unresolved defect is recorded, but the question has not been checked question-by-question against a certified source.
+- `已对照 PDF 复核`: the question surface has been checked against certified PDF-derived Markdown or the source PDF.
+
+For legacy entries without `ocr_status`, read them as `已做结构修复` for compatibility. Never write that default back as an upgrade, and never infer `已对照 PDF 复核` from a clean-looking surface.
 
 ## Paper Metadata
 
@@ -161,6 +170,10 @@ academic_year: 2023-2024
 ```
 
 `paper_type` should use the exam population name such as `期中`, `期末`, or `其他`. `academic_year` must use `YYYY-YYYY` with consecutive years. Legacy files may infer both from `source`; an unknown year may participate in total frequency but never in time-trend calculations.
+
+The document-level block must be immediately adjacent to the first H1-H6 heading and must contain at least one of `paper_type`, `academic_year`, or the paper-level `source`. Do not scan past the first heading or borrow a later question block as paper metadata.
+
+When presenting percentages or percentage-point changes, multiply the stored decimal by 100 and round to an integer with decimal `ROUND_HALF_UP`. This applies equally to positive and negative half values, so `-37.5` displays as `-38`.
 
 ## Solution Blocks
 
@@ -201,6 +214,14 @@ Wrong-cause vocabulary is closed:
 
 Leave wrong cause blank for `对` and `对但慢`. `对但慢` requires user self-report; do not infer it from screenshots.
 
+Every S3 confirmation batch appends exactly one hidden marker together with its rows:
+
+```markdown
+<!-- s3-batch:<batch-id> -->
+```
+
+The matching `90_缓存/s3-grading/<batch-id>.json` is the recovery source. A retry that finds the marker must resume image archival and must not append the rows again.
+
 ## Blocker List
 
 `30_我的数据/卡点清单.md` bridges concept learning and practice evidence. S7 appends concept-stage blockers from learning-dialogue exports; S5 may add concept blockers observed from mistakes.
@@ -215,6 +236,15 @@ Prefer this shape:
   证据: 同一概念连续追问 3 轮
   原文摘录:
   > 保留聊天记录中最终讲通的解释原文，不改写。
+```
+
+Every `最终讲通解释` quote must also carry these evidence fields immediately before `原文摘录`:
+
+```markdown
+  quote_source: <vault-root-relative exported dialogue path>
+  quote_source_sha256: <source file SHA-256>
+  quote_lines: <1-based start>-<1-based end>
+  quote_sha256: <UTF-8 SHA-256 of the exact quoted lines joined by LF>
 ```
 
 Allowed S7 item types are closed:
@@ -277,7 +307,15 @@ Regenerate derived files from source data. Do not manually patch a single count,
 
 Every skill that writes course artifacts must run this check BEFORE reporting completion, and include a one-line result in the report (e.g. `自检：控制字符 0，LaTeX 异常 0，断链 0`). Fix findings before delivering.
 
+Run the shared gate instead of improvising one-off scans:
+
+```text
+python <skill>/scripts/validate_course_artifacts.py --course-root <course-root> --scope <s1|s2|s3|s4|s5|s6|s7|s8|s9|all>
+```
+
+Exit code `0` passes, `2` means artifact findings must be fixed, and `3` means the requested course or scope is invalid. For S2, the same command also verifies the analysis input fingerprint and byte-for-byte JSON-to-Markdown rendering.
+
 1. Control characters: file bodies must not contain invisible control characters (`\x00-\x08`, `\x0B`, `\x0C`, `\x0E-\x1F`). Backslashes in LaTeX get eaten by shell string escaping (real cases: `\frac` → form-feed + `rac`, `\qquad` → `qquad`, `\,` → `,`); the damage is invisible to eyeballing, so scan with a regex.
-2. LaTeX corruption patterns: backslash-less remnants of `qquad/quad/frac/left/right`; every `\left` paired with a `\right`; no math expressions naked outside `$`/`$$` delimiters.
+2. LaTeX corruption patterns: backslash-less remnants of `qquad/quad/frac/left/right`; every `\left` paired with a `\right`; balanced `$`/`$$` delimiters. Suspected naked math outside delimiters is a warning for human review, not a hard failure, because ordinary Chinese prose can contain formula-like text.
 3. Links: every in-document link target (file and heading anchor) must actually exist.
 4. Root-cause prevention: write backslash-heavy content through file-writing tools, never through shell string interpolation.
