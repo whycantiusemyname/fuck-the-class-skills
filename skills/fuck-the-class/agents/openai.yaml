@@ -1,4 +1,4 @@
 interface:
   display_name: "Fuck The Class"
-  short_description: "University exam prep bound to course scope and evidence"
-  default_prompt: "Use $fuck-the-class to produce understandable university exam preparation that follows the course profile and supplied materials without expanding the curriculum."
+  short_description: "Guided university exam prep bound to course evidence"
+  default_prompt: "Use $fuck-the-class to produce teacher-friendly, source-bound university exam preparation that students can follow step by step."
