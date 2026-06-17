@@ -22,6 +22,11 @@ MARKDOWN_LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
 HEADING_RE = re.compile(r"^#{1,6}\s+(.+?)\s*#*\s*$", re.MULTILINE)
 DERIVED_MARKER = "> 派生文件，可重新生成，勿手改。"
 SCOPES = {"s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "all"}
+S7_ITEM_MARKER_RE = re.compile(r"^<!-- s7-item:([0-9a-fA-F]{64}):([^:]+):(.+?) -->$")
+S7_CURRENT_TYPES = {"用户提问", "明确疑问", "被纠正的误解", "最终讲通解释"}
+S7_LEGACY_TYPES = {"追问≥2轮"}
+S7_ALLOWED_TYPES = S7_CURRENT_TYPES | S7_LEGACY_TYPES
+S7_RANGE_LIST_RE = re.compile(r"^\d+-\d+(?:,\s*\d+-\d+)*$")
 
 
 class ValidationConfigError(Exception):
@@ -169,6 +174,128 @@ def derived_marker_issues(course_root: Path, files: list[Path]) -> list[str]:
             continue
         if read_text(path).splitlines()[:1] != [DERIVED_MARKER]:
             issues.append(f"{path}: 缺少派生文件标记")
+    return issues
+
+
+def normalize_s7_ranges(raw: str) -> str:
+    return ",".join(part.strip() for part in raw.split(","))
+
+
+def parse_s7_ranges(raw: str) -> list[tuple[int, int]] | None:
+    if not S7_RANGE_LIST_RE.fullmatch(raw.strip()):
+        return None
+    ranges: list[tuple[int, int]] = []
+    for part in raw.split(","):
+        start_text, end_text = part.strip().split("-", 1)
+        start, end = int(start_text), int(end_text)
+        if start < 1 or end < start:
+            return None
+        ranges.append((start, end))
+    return ranges
+
+
+def s7_block_fields(block: list[str]) -> dict[str, str]:
+    fields: dict[str, str] = {}
+    for line in block:
+        match = re.match(
+            r"^\s*(evidence_source|evidence_source_sha256|evidence_lines|quote_source|quote_source_sha256|quote_lines|quote_sha256|quote_scope_reason):\s*(.*?)\s*$",
+            line,
+        )
+        if match:
+            fields[match.group(1)] = match.group(2)
+    return fields
+
+
+def s7_item_marker_issues(course_root: Path) -> list[str]:
+    blocker = course_root / "30_我的数据" / "卡点清单.md"
+    if not blocker.exists():
+        return []
+    lines = read_text(blocker).splitlines()
+    issues: list[str] = []
+    markers: dict[tuple[str, str, str], int] = {}
+    marker_indexes: list[int] = []
+
+    for index, line in enumerate(lines):
+        if line.startswith("<!-- s7-item:"):
+            marker_indexes.append(index)
+            match = S7_ITEM_MARKER_RE.fullmatch(line.strip())
+            if not match:
+                issues.append(f"{blocker}:{index + 1}: S7 item marker 格式错误")
+                continue
+            source_sha, item_type, evidence_lines = match.groups()
+            item_type = item_type.strip()
+            evidence_lines = normalize_s7_ranges(evidence_lines)
+            key = (source_sha.lower(), item_type, evidence_lines)
+            if key in markers:
+                issues.append(f"{blocker}:{index + 1}: S7 item marker 重复，首次出现在第 {markers[key]} 行")
+            else:
+                markers[key] = index + 1
+            if item_type not in S7_ALLOWED_TYPES:
+                issues.append(f"{blocker}:{index + 1}: S7 item 类型不在允许集合中：{item_type}")
+            if parse_s7_ranges(evidence_lines) is None:
+                issues.append(f"{blocker}:{index + 1}: S7 item marker evidence_lines 格式错误")
+
+    for position, index in enumerate(marker_indexes):
+        marker_match = S7_ITEM_MARKER_RE.fullmatch(lines[index].strip())
+        if not marker_match:
+            continue
+        marker_sha, marker_type, marker_ranges = marker_match.groups()
+        next_index = marker_indexes[position + 1] if position + 1 < len(marker_indexes) else len(lines)
+        block = lines[index + 1 : next_index]
+        item_line = next((line for line in block if line.startswith("- 来源: S7学习对话提取")), "")
+        if not item_line:
+            issues.append(f"{blocker}:{index + 1}: S7 item marker 后缺少条目正文")
+            continue
+        item_type_match = re.search(r"类型:\s*([^｜]+)", item_line)
+        if not item_type_match:
+            issues.append(f"{blocker}:{index + 1}: S7 条目缺少类型")
+            continue
+        item_type = item_type_match.group(1).strip()
+        if item_type != marker_type.strip():
+            issues.append(f"{blocker}:{index + 1}: S7 marker 类型与条目类型不一致")
+
+        fields = s7_block_fields(block)
+        missing = {"evidence_source", "evidence_source_sha256", "evidence_lines"} - fields.keys()
+        if missing:
+            issues.append(f"{blocker}:{index + 1}: S7 新条目缺少证据字段 {sorted(missing)}")
+            continue
+
+        if fields["evidence_source_sha256"].lower() != marker_sha.lower():
+            issues.append(f"{blocker}:{index + 1}: S7 marker SHA 与 evidence_source_sha256 不一致")
+        if normalize_s7_ranges(fields["evidence_lines"]) != normalize_s7_ranges(marker_ranges):
+            issues.append(f"{blocker}:{index + 1}: S7 marker evidence_lines 与字段不一致")
+
+        source = resolve_vault_path(course_root.parent, fields["evidence_source"])
+        if source is None:
+            issues.append(f"{blocker}:{index + 1}: evidence_source 不存在")
+            continue
+        if sha256_bytes(source.read_bytes()) != fields["evidence_source_sha256"].lower():
+            issues.append(f"{blocker}:{index + 1}: evidence_source_sha256 不匹配")
+        source_lines = read_text(source).splitlines()
+        ranges = parse_s7_ranges(fields["evidence_lines"])
+        if ranges is None:
+            issues.append(f"{blocker}:{index + 1}: evidence_lines 格式错误")
+        else:
+            for start, end in ranges:
+                if end > len(source_lines):
+                    issues.append(f"{blocker}:{index + 1}: evidence_lines 越界")
+                    break
+
+        if item_type == "最终讲通解释":
+            quote_missing = {"quote_source", "quote_source_sha256", "quote_lines", "quote_sha256"} - fields.keys()
+            if quote_missing:
+                issues.append(f"{blocker}:{index + 1}: S7 最终讲通解释缺少引用字段 {sorted(quote_missing)}")
+                continue
+            if "原文摘录:" not in [line.strip() for line in block]:
+                issues.append(f"{blocker}:{index + 1}: S7 最终讲通解释缺少原文摘录")
+                continue
+            quote_ranges = parse_s7_ranges(fields["quote_lines"])
+            if quote_ranges is None or len(quote_ranges) != 1:
+                issues.append(f"{blocker}:{index + 1}: quote_lines 格式错误")
+            else:
+                start, end = quote_ranges[0]
+                if end - start + 1 > 25 and not fields.get("quote_scope_reason", "").strip():
+                    issues.append(f"{blocker}:{index + 1}: 超过 25 行的最终讲通解释缺少 quote_scope_reason")
     return issues
 
 
@@ -350,6 +477,7 @@ def validate(course_root: Path, scope: str) -> tuple[list[str], list[str], dict[
     if scope in {"s2", "all"}:
         errors.extend(s2_issues(course_root))
     if scope in {"s7", "all"}:
+        errors.extend(s7_item_marker_issues(course_root))
         errors.extend(quote_evidence_issues(course_root))
     errors.extend(ocr_consumption_issues(course_root, scope))
     if scope in {"s6", "all"}:

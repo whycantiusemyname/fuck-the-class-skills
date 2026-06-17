@@ -257,14 +257,33 @@ Prefer this shape:
 ```markdown
 ## 第六章
 
-- 来源: S7学习对话提取｜类型: 追问≥2轮｜题型: 共射放大电路｜状态: 待检验
+<!-- s7-item:<source_sha256>:明确疑问:<evidence_lines> -->
+- 来源: S7学习对话提取｜类型: 明确疑问｜题型: 共射放大电路｜状态: 待检验
   卡点: 为什么静态工作点和小信号模型要分开看
-  证据: 同一概念连续追问 3 轮
+  概念键: 放大电路｜静态工作点与小信号模型
+  证据: 用户明确要求换角度解释同一概念
+  evidence_source: <vault-root-relative cached dialogue path>
+  evidence_source_sha256: <source file SHA-256>
+  evidence_lines: <1-based start>-<1-based end>
   原文摘录:
   > 保留聊天记录中最终讲通的解释原文，不改写。
 ```
 
-Every `最终讲通解释` quote must also carry these evidence fields immediately before `原文摘录`:
+New S7 items must carry an idempotency marker immediately before the item:
+
+```markdown
+<!-- s7-item:<source_sha256>:<类型>:<evidence_lines> -->
+```
+
+For new S7 items, every item type must carry these evidence fields:
+
+```markdown
+  evidence_source: <vault-root-relative cached dialogue path>
+  evidence_source_sha256: <source file SHA-256>
+  evidence_lines: <1-based start>-<1-based end>
+```
+
+Every `最终讲通解释` quote must also carry these quote fields immediately before `原文摘录`:
 
 ```markdown
   quote_source: <vault-root-relative exported dialogue path>
@@ -273,19 +292,36 @@ Every `最终讲通解释` quote must also carry these evidence fields immediate
   quote_sha256: <UTF-8 SHA-256 of the exact quoted lines joined by LF>
 ```
 
-Allowed S7 item types are closed:
+If `quote_lines` spans more than 25 lines, add this field immediately before `原文摘录`:
+
+```markdown
+  quote_scope_reason: <why the continuous long excerpt is necessary>
+```
+
+Current S7 item types are closed:
 
 - `用户提问`
+- `明确疑问`
 - `被纠正的误解`
-- `追问≥2轮`
 - `最终讲通解释`
+
+Legacy S7 item type compatibility:
+
+- Existing `追问≥2轮` records remain valid historical data.
+- Do not write new `追问≥2轮` records; use `明确疑问` for new extraction when the user shows a real doubt.
 
 S7 rules:
 
-- Extract only the four allowed item types.
+- Extract only the four current item types for new records.
+- A single clear doubt is enough for `明确疑问`; do not require two follow-up rounds.
+- Progress-only turns such as "continue", "next page", or "start this section" are not blockers unless paired with a real doubt.
+- A `最终讲通解释` must have a corresponding earlier `用户提问` or `明确疑问`; ordinary explanations without a visible blocker are not quoted as final explanations.
 - Skip material that merely repeats `20_知识/`.
 - Add `question_type` only when it matches `_标签库.md`; otherwise leave it blank or mark `未映射`.
+- Add `概念键` as a stable short concept path for S7/S4/S5 weak association, especially when `题型` is `未映射`. `概念键` is not a question-type tag and must not modify `_标签库.md`.
+- When the dialogue export is outside the vault or course tree, copy it byte-for-byte into `<course-root>/90_缓存/s7-dialogue/` and use the cached vault-root-relative path for `evidence_source` and `quote_source`.
 - Preserve `最终讲通解释` excerpts verbatim as block quotes. Do not rewrite, polish, compress, translate, or silently fix wording.
+- Keep final-explanation excerpts to the smallest continuous original passage that captures the explanation. Prefer 5-25 lines; use `quote_scope_reason` for longer excerpts.
 - Keep S7 output as evidence extraction, not a knowledge summary or study plan.
 
 S4 and S5 consume this file:
