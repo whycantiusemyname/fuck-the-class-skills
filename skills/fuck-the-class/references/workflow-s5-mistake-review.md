@@ -1,37 +1,47 @@
-# S5 Mistake Review
+# S5 错因与诊断假设复盘
 
-Purpose: show what is actually blocking score gain.
+目的：展示真正阻碍提分的证据。S5 保留粗错因统计，但教学判断以开放诊断假设、证据链和下一步验证为核心。
 
-Inputs:
+## 输入
 
-- course root
-- optional date range
+- 课程根目录
+- 可选日期范围
 
-Required files:
+## 必需文件
 
-- read: `30_我的数据/做题记录.md`
-- read/write: `30_我的数据/卡点清单.md`
-- read: `10_题库/*.md`
-- read optional: `20_知识/`
-- read optional: root-level `课程口径.md`
-- write: `40_派生视图/复盘报告.md`
+- 读取：`30_我的数据/做题记录.md`
+- 可选读取：`30_我的数据/学习事件.jsonl`
+- 读写：`30_我的数据/卡点清单.md`
+- 读取：`10_题库/*.md`
+- 可选读取：`20_知识/`
+- 可选读取：根目录 `课程口径.md`
+- 写入：`40_派生视图/复盘报告.md`
 
-Steps:
+## 步骤
 
-1. Count wrong causes overall, by chapter, and by question type.
-2. If there are fewer than 30 records, state that the sample is small.
-3. Map the dominant cause to action:
-   - `计算错`: timed redo list, no explanation-first review.
-   - `起手错` or `没思路`: starter-drill list for S4.
-   - `概念错`: link to matching `20_知识/` chapter notes and update `卡点清单.md`.
-   - `审题错`: extract short check sentences tied to observed mistakes.
-   Use the course profile's learning stage only to adjust how much prerequisite explanation the prescription needs. Keep every concept recommendation inside the confirmed scope or supplied materials; if no profile exists, use the materials as the boundary.
-4. Run `卡点交叉`: compare `概念错` question types with `卡点清单.md`. Mark items present in both places as `确认顽固弱点` and list them separately.
-5. List repeatedly failed red types as `放弃候选` or `重点攻坚候选`.
+1. 按整体、章节、题型统计粗错因。少于 30 条记录时明确说明样本小。
+2. 从 `学习事件.jsonl` 汇总反复出现的 `diagnosis_hypothesis`、`evidence`、`next_probe` 和 `confidence`。没有学习事件时，只基于做题记录和卡点清单形成保守假设。
+3. 把主导粗错因映射到动作建议，但不要把粗标签当教学真相：
+   - `计算错`: 限时重做清单，不优先长讲解。
+   - `起手错` 或 `没思路`: 生成 S4 起手训练候选。
+   - `概念错`: 链接匹配 `20_知识/`，必要时追加卡点。
+   - `审题错`: 提取和实际错误绑定的短检查句。
+4. 写 `反复出现的诊断假设`：
+   - 假设名；
+   - 支撑证据；
+   - 反证或“不是……”；
+   - 下一步最小验证题或 probe；
+   - 状态：`未验证` / `待复测` / `已修复迹象` / `证据不足`。
+5. 运行 `卡点交叉`：比较 `概念错` 题型、学习事件诊断假设和 `卡点清单.md`。同时出现的项目标为 `确认顽固弱点` 并单独列出。
+6. 列出反复失败红区题型，作为 `低收益暂缓候选` 或 `重点攻坚候选`，但必须说明证据和待确认条件。
+7. 必要时向 `卡点清单.md` 追加概念卡点；追加内容应表示待验证假设，不写成永久缺陷。追加前写隐藏 marker：`<!-- s5-hypothesis:<date>:<anchor-or-theme>:<sha8> -->`，避免重复追加同义卡点。
+8. 运行 `python <skill>/scripts/validate_course_artifacts.py --course-root <course-root> --scope s5`。
 
-Output:
+## 输出
 
 - `40_派生视图/复盘报告.md`
-- optional `卡点清单.md` updates for concept blockers
+- 可选追加 `卡点清单.md`
 
-Boundary: count only decision-relevant data. Do not create trend charts or decorative dashboards.
+## 边界
+
+只统计决策相关数据。不要制作装饰性趋势图或 dashboard。不要把开放诊断假设转成新的闭合 taxonomy。课程阶段只影响解释粒度，不扩展课程范围。

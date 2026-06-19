@@ -31,13 +31,20 @@ class ProbePdfProgressTests(unittest.TestCase):
         self.assertFalse(progressed)
         review = self.work / "reports" / "visual_review" / "reviews" / "segment-001.json"
         review.write_text(
-            json.dumps({"segment_number": 1, "status": "passed", "pages_reviewed": [1, 2], "reviewed_at": "2026-01-01T01:00:00Z"}),
+            json.dumps({
+                "segment_number": 1,
+                "status": "passed",
+                "pages_reviewed": [1, 2],
+                "blockers": ["公式待核对"],
+                "reviewed_at": "2026-01-01T01:00:00Z",
+            }),
             encoding="utf-8",
         )
         after = probe.build_snapshot(self.work)
         progressed, reasons = probe.compare_snapshots(before, after)
         self.assertTrue(progressed)
         self.assertTrue(any("完成分段" in reason for reason in reasons))
+        self.assertEqual(after["blocker_count"], 1)
 
     def test_run_id_change_is_not_progress(self):
         before = probe.build_snapshot(self.work)

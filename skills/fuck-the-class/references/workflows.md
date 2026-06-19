@@ -1,6 +1,6 @@
-# Workflow Index
+# 工作流索引
 
-Compatibility index only. New executions should follow the direct action links in `SKILL.md` and read only the selected workflow.
+兼容索引。新执行应使用 `SKILL.md` 中的直接动作链接，只读取选中的 workflow。
 
 - S0: [workflow-s0-course-setup.md](./workflow-s0-course-setup.md)
 - S1: [workflow-s1-paper-intake.md](./workflow-s1-paper-intake.md)
@@ -12,5 +12,6 @@ Compatibility index only. New executions should follow the direct action links i
 - S7: [workflow-s7-dialogue-extraction.md](./workflow-s7-dialogue-extraction.md)
 - S8: [workflow-s8-courseware-digest.md](./workflow-s8-courseware-digest.md)
 - S9: [workflow-s9-verified-solutions.md](./workflow-s9-verified-solutions.md)
+- S10: [workflow-s10-tutor-session.md](./workflow-s10-tutor-session.md)
 
-Use exactly one action unless the user requests a combined operation. Shared preflight, schema, and write-boundary rules come from `SKILL.md` and `schema-and-rules.md`; this compatibility index defines no additional workflow rules.
+除非用户要求组合操作，否则一次只执行一个动作。共享 preflight、schema 和写入边界来自 `SKILL.md` 与 `schema-and-rules.md`；本兼容索引不定义额外 workflow 规则。

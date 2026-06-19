@@ -1,36 +1,40 @@
-# S6 Cram Pack
+# S6 冲刺包
 
-Purpose: produce the last-stage exam packet.
+目的：生成考前最后阶段的材料包。
 
-Inputs:
+## 输入
 
-- course root
-- exam time or scope if the user provides it
-- optional request for a mock paper
+- 课程根目录
+- 用户提供的考试时间或范围
+- 可选模拟卷请求
 
-Required files:
+## 必需文件
 
-- read: `30_我的数据/做题记录.md`
-- read: `30_我的数据/卡点清单.md`
-- read: `10_题库/*.md`
-- read: `10_题库/_标签库.md`
-- read optional: `40_派生视图/考频矩阵.md`
-- read optional: `40_派生视图/复盘报告.md`
-- read optional: root-level `课程口径.md`
-- write: `40_派生视图/冲刺包.md`
-- write optional: `40_派生视图/模拟卷.md`
+- 读取：`30_我的数据/做题记录.md`
+- 可选读取：`30_我的数据/学习事件.jsonl`
+- 读取：`30_我的数据/卡点清单.md`
+- 读取：`10_题库/*.md`
+- 读取：`10_题库/_标签库.md`
+- 可选读取：`40_派生视图/考频矩阵.md`
+- 可选读取：`40_派生视图/复盘报告.md`
+- 可选读取：根目录 `课程口径.md`
+- 写入：`40_派生视图/冲刺包.md`
+- 可选写入：`40_派生视图/模拟卷.md`
 
-Steps:
+## 步骤
 
-1. Build `保底清单` from high-frequency types intersecting with prior mistakes. A one-sentence first move may come only from a non-`存疑` S9 solution block or an explicitly user-confirmed attempt record. Write it as `起手：<text>｜来源：S9 <anchor>` or `起手：<text>｜来源：用户确认记录 <date>`; when neither exists, keep the anchor and write `起手：待 S9`. Never solve or invent a starter during S6.
-2. Build `起手训练卷` from red and yellow types, asking only for the first move.
-3. Build `考场提醒卡` from the user's own top wrong causes plus S5 `确认顽固弱点`; keep it under half a page.
-4. Optionally assemble a mock paper from never-attempted real questions with the real paper structure.
-5. Run `validate_course_artifacts.py --scope s6`.
+1. 从高频题型与既往错误交集构建 `保底清单`。一句起手只能来自非 `存疑` S9 解答块或用户明确确认过的做题记录。写作格式为 `起手：<text>｜来源：S9 <anchor>` 或 `起手：<text>｜来源：用户确认记录 <date>`；没有来源时保留 anchor 并写 `起手：待 S9`。S6 不现场解题或发明起手。
+2. 从红区和黄区题型构建 `起手训练卷`，只要求第一步。
+3. 从用户自己的最高频错因、S5 `确认顽固弱点` 和必要学习事件证据生成 `考场提醒卡`，控制在半页以内。
+4. 用户要求时，用未尝试真实题按真实试卷结构组装模拟卷。默认只重组真实题，不生成新题。
+5. 只有用户明确要求生成变式题时，才可加入生成题；每道生成题必须标注 `generated_variant_of`、`source_anchor`、`tested_capability` 和 `not_original_exam_question: true`。
+6. 运行 `python <skill>/scripts/validate_course_artifacts.py --course-root <course-root> --scope s6`。
 
-Output:
+## 输出
 
 - `40_派生视图/冲刺包.md`
-- optional clean mock paper
+- 可选干净模拟卷
 
-Boundary: reminders must come from the user's records or confirmed blocker cross-checks, not generic advice. Use the learning stage only to choose familiar wording and how much prerequisite context to retain. Do not add a concept or method merely because it is common at that stage. S6 consumes starters but never authors solution content.
+## 边界
+
+提醒必须来自用户记录、学习事件或已确认卡点交叉，而不是泛泛建议。学习阶段只影响熟悉措辞和保留多少先修上下文，不授权新增常见但课外的概念或方法。S6 消费起手，不写解答内容。

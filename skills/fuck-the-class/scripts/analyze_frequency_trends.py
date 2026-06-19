@@ -519,6 +519,7 @@ def period_metrics(
         for question in entity_questions
         if question.paper_key in period_papers
     ), 4)
+    known_score_per_paper = round(known_score_total / len(period_papers), 4) if period_papers else None
     return {
         "years": [f"{year:04d}-{year + 1:04d}" for year in years],
         "year_count": len(years),
@@ -526,12 +527,16 @@ def period_metrics(
         "coverage_numerator": numerator,
         "coverage_denominator": denominator,
         "coverage_rate": rate,
+        "year_coverage_numerator": numerator,
+        "year_coverage_denominator": denominator,
+        "year_coverage_rate": rate,
         "average_questions_per_paper": average_questions_per_paper(entity_questions, period_papers),
         "known_form_count": known_form_count,
         "form_distribution": forms,
         "long_ratio": long_ratio(forms),
         "known_score_count": known_score_count,
         "known_score_total": known_score_total,
+        "known_score_per_paper": known_score_per_paper,
         "median_score": median_value,
     }
 

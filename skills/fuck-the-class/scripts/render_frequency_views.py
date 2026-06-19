@@ -74,7 +74,7 @@ def fmt_number(value: float | int | None) -> str:
     return f"{value:.4f}".rstrip("0").rstrip(".")
 
 
-def fmt_coverage(period: dict[str, Any]) -> str:
+def fmt_year_coverage(period: dict[str, Any]) -> str:
     return f"{period['coverage_numerator']}/{period['coverage_denominator']}（{fmt_rate(period['coverage_rate'])}）"
 
 
@@ -147,8 +147,8 @@ def alert_sentence(course_name: str, item: dict[str, Any], paper_type: str, kind
     reps = profile["representatives"]["recent"]
     rep_text = "、".join(question_link(course_name, rep) for rep in reps) or "无近期代表题"
     base = (
-        f"- **{link}｜{trend_text(profile)}：** 历史 {fmt_coverage(historical)} → "
-        f"近期 {fmt_coverage(recent)}，{fmt_delta(profile['coverage_delta'])}"
+        f"- **{link}｜{trend_text(profile)}：** 历史年度覆盖 {fmt_year_coverage(historical)} → "
+        f"近期年度覆盖 {fmt_year_coverage(recent)}，{fmt_delta(profile['coverage_delta'])}"
     )
     if kind == "method":
         details: list[str] = []
@@ -195,23 +195,23 @@ def chart_lines(course_name: str, paper_type: str, themes: list[dict[str, Any]],
     outputs: list[str] = []
     charts = [
         (
-            f"{paper_type}主题覆盖：柱=历史，线=近期",
-            "覆盖率 %",
+            f"{paper_type}主题年度覆盖：柱=历史，线=近期",
+            "年度覆盖率 %",
             "0 --> 100",
             [f"    bar {json.dumps(historical)}", f"    line {json.dumps(recent)}"],
-            "历史与近期覆盖",
-            ["编号", "主题", "历史覆盖", "近期覆盖"],
+            "历史与近期年度覆盖",
+            ["编号", "主题", "历史年度覆盖", "近期年度覆盖"],
             [
-                [theme_ids[item["name"]], theme_link(course_name, item["name"], table=True), fmt_coverage(item["exam_profiles"][paper_type]["historical"]), fmt_coverage(item["exam_profiles"][paper_type]["recent"])]
+                [theme_ids[item["name"]], theme_link(course_name, item["name"], table=True), fmt_year_coverage(item["exam_profiles"][paper_type]["historical"]), fmt_year_coverage(item["exam_profiles"][paper_type]["recent"])]
                 for item in themes
             ],
         ),
         (
-            f"{paper_type}近期覆盖变化（百分点）",
+            f"{paper_type}近期年度覆盖变化（百分点）",
             "百分点",
             "-100 --> 100",
             [f"    bar {json.dumps(deltas)}"],
-            "覆盖变化",
+            "年度覆盖变化",
             ["编号", "主题", "变化", "趋势"],
             [
                 [theme_ids[item["name"]], theme_link(course_name, item["name"], table=True), fmt_delta(item["exam_profiles"][paper_type]["coverage_delta"]), trend_text(item["exam_profiles"][paper_type])]
@@ -219,14 +219,21 @@ def chart_lines(course_name: str, paper_type: str, themes: list[dict[str, Any]],
             ],
         ),
         (
-            f"{paper_type}近期已知分值负担",
-            "分值合计",
+            f"{paper_type}近期累计已知分值",
+            "累计分值",
             f"0 --> {score_max}",
             [f"    bar {json.dumps(scores)}"],
-            "近期分值负担",
-            ["编号", "主题", "近期已知分值", "近期中位分", "近期每卷题数"],
+            "近期累计分值",
+            ["编号", "主题", "近期累计已知分值", "近期每卷平均已知分值", "近期中位分", "近期每卷题数"],
             [
-                [theme_ids[item["name"]], theme_link(course_name, item["name"], table=True), fmt_number(item["exam_profiles"][paper_type]["recent"]["known_score_total"]), fmt_number(item["exam_profiles"][paper_type]["recent"]["median_score"]), fmt_number(item["exam_profiles"][paper_type]["recent"]["average_questions_per_paper"])]
+                [
+                    theme_ids[item["name"]],
+                    theme_link(course_name, item["name"], table=True),
+                    fmt_number(item["exam_profiles"][paper_type]["recent"]["known_score_total"]),
+                    fmt_number(item["exam_profiles"][paper_type]["recent"]["known_score_per_paper"]),
+                    fmt_number(item["exam_profiles"][paper_type]["recent"]["median_score"]),
+                    fmt_number(item["exam_profiles"][paper_type]["recent"]["average_questions_per_paper"]),
+                ]
                 for item in themes
             ],
         ),
@@ -301,7 +308,7 @@ def render_matrix(course_root: Path, payload: dict[str, Any]) -> str:
             recent = profile["recent"]
             lines.append(
                 f"- **{theme_link(course_name, item['name'])}｜{profile['importance_role']}：** "
-                f"近期覆盖 {fmt_coverage(recent)}，近期已知分值 {fmt_number(recent['known_score_total'])}，"
+                f"近期年度覆盖 {fmt_year_coverage(recent)}，近期累计已知分值 {fmt_number(recent['known_score_total'])}，"
                 f"趋势为 {trend_text(profile)}。"
             )
         lines.append("")
@@ -314,12 +321,12 @@ def render_matrix(course_root: Path, payload: dict[str, Any]) -> str:
             rows.append([
                 theme_link(course_name, item["name"], table=True),
                 profile["importance_role"],
-                fmt_coverage(profile["historical"]),
-                fmt_coverage(profile["recent"]),
+                fmt_year_coverage(profile["historical"]),
+                fmt_year_coverage(profile["recent"]),
                 fmt_number(profile["recent"]["known_score_total"]),
                 trend_text(profile),
             ])
-        lines.extend(collapsed_table(f"{paper_type}主题重要性", ["主题", "考试角色", "历史覆盖", "近期覆盖", "近期分值", "趋势"], rows))
+        lines.extend(collapsed_table(f"{paper_type}主题重要性", ["主题", "考试角色", "历史年度覆盖", "近期年度覆盖", "近期累计分值", "趋势"], rows))
 
     lines.extend(["## 高频排序", ""])
     for paper_type in paper_types:
@@ -331,12 +338,12 @@ def render_matrix(course_root: Path, payload: dict[str, Any]) -> str:
                 str(index),
                 theme_link(course_name, item["theme"], item["name"], table=True),
                 profile["importance_role"],
-                fmt_coverage(profile["recent"]),
+                fmt_year_coverage(profile["recent"]),
                 fmt_number(profile["recent"]["average_questions_per_paper"]),
                 fmt_number(profile["recent"]["known_score_total"]),
                 trend_text(profile),
             ])
-        lines.extend(collapsed_table(f"{paper_type}知识点排序", ["序", "知识点", "角色", "近期覆盖", "每卷题数", "近期分值", "趋势"], rows))
+        lines.extend(collapsed_table(f"{paper_type}知识点排序", ["序", "知识点", "角色", "近期年度覆盖", "每卷题数", "近期累计分值", "趋势"], rows))
 
     lines.extend(["## 低频与降温信号", ""])
     for paper_type in paper_types:
@@ -352,12 +359,12 @@ def render_matrix(course_root: Path, payload: dict[str, Any]) -> str:
             rows.append([
                 theme_link(course_name, item["theme"], item["name"], table=True),
                 profile["importance_role"],
-                fmt_coverage(profile["historical"]),
-                fmt_coverage(profile["recent"]),
+                fmt_year_coverage(profile["historical"]),
+                fmt_year_coverage(profile["recent"]),
                 fmt_delta(profile["coverage_delta"]),
                 trend_text(profile),
             ])
-        lines.extend(collapsed_table(f"{paper_type}低频与降温", ["知识点", "角色", "历史覆盖", "近期覆盖", "变化", "趋势"], rows))
+        lines.extend(collapsed_table(f"{paper_type}低频与降温", ["知识点", "角色", "历史年度覆盖", "近期年度覆盖", "变化", "趋势"], rows))
 
     lines.extend(["## 完整趋势与分卷证据附录", ""])
     for paper_type in paper_types:
@@ -369,12 +376,12 @@ def render_matrix(course_root: Path, payload: dict[str, Any]) -> str:
                 theme_link(course_name, item["theme"], item["name"], table=True),
                 profile["importance_role"],
                 trend_text(profile),
-                fmt_coverage(profile["historical"]),
-                fmt_coverage(profile["recent"]),
+                fmt_year_coverage(profile["historical"]),
+                fmt_year_coverage(profile["recent"]),
                 fmt_delta(profile["coverage_delta"]),
                 reps,
             ])
-        lines.extend(collapsed_table(f"{paper_type}完整趋势", ["知识点", "角色", "趋势", "历史覆盖", "近期覆盖", "变化", "代表题"], trend_rows))
+        lines.extend(collapsed_table(f"{paper_type}完整趋势", ["知识点", "角色", "趋势", "历史年度覆盖", "近期年度覆盖", "变化", "代表题"], trend_rows))
 
         year_rows = [
             [row["academic_year"], str(row["paper_count"]), str(row["question_count"])]
@@ -423,7 +430,7 @@ def render_theme_table(course_root: Path, payload: dict[str, Any]) -> str:
             historical, recent = profile["historical"], profile["recent"]
             lines.append(
                 f"- **{paper_type}｜{profile['importance_role']}｜{trend_text(profile)}：** "
-                f"历史 {fmt_coverage(historical)} → 近期 {fmt_coverage(recent)}，{fmt_delta(profile['coverage_delta'])}。"
+                f"历史年度覆盖 {fmt_year_coverage(historical)} → 近期年度覆盖 {fmt_year_coverage(recent)}，{fmt_delta(profile['coverage_delta'])}。"
             )
             change = profile.get("tag_change") or {}
             dominant = "—"
@@ -438,7 +445,7 @@ def render_theme_table(course_root: Path, payload: dict[str, Any]) -> str:
                 paper_type,
                 profile["importance_role"],
                 trend_text(profile),
-                f"{fmt_coverage(historical)} → {fmt_coverage(recent)}（{fmt_delta(profile['coverage_delta'])}）",
+                f"{fmt_year_coverage(historical)} → {fmt_year_coverage(recent)}（{fmt_delta(profile['coverage_delta'])}）",
                 f"{fmt_distribution(historical['form_distribution'])} → {fmt_distribution(recent['form_distribution'])}",
                 dominant,
                 rep_text,
@@ -448,7 +455,7 @@ def render_theme_table(course_root: Path, payload: dict[str, Any]) -> str:
                 if starter:
                     starter_rows.append(f"- 起手｜{question_link(course_name, representative)}：{starter}")
         lines.append("")
-        lines.extend(collapsed_table(f"趋势与代表题｜{item['name']}", ["卷型", "角色", "趋势", "覆盖变化", "题型结构", "主导考法", "代表题"], rows))
+        lines.extend(collapsed_table(f"趋势与代表题｜{item['name']}", ["卷型", "角色", "趋势", "年度覆盖变化", "题型结构", "主导考法", "代表题"], rows))
         lines.extend(starter_rows)
         if starter_rows:
             lines.append("")

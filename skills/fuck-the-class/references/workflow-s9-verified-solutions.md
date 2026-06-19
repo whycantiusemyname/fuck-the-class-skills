@@ -1,34 +1,36 @@
-# S9 Verified Solutions
+# S9 核验解答
 
-Purpose: add verified folded solution blocks directly under selected questions in `10_题库/`, for S3 grading and pre-exam reference. Cover on demand (high-frequency types, today's queue, cram-pack questions) — never the whole bank in one pass.
+目的：把已核验折叠解答块直接加到 `10_题库/` 中选定题目下，供 S3 批改和考前参考使用。按需覆盖高频题、今日候选、冲刺包题目；不要一口气做完整题库。
 
-Inputs:
+## 输入
 
-- course root
-- anchor scope (e.g. "all questions in today's queue", "1-2 questions per top-20 high-frequency type")
-- optional reference answers: many paper scans carry a QR code linking to official/reference answers — the user scans and provides them as images or text; if QR images already exist in OCR artifacts, decoding them is allowed
-- optional root-level `课程口径.md`
+- 课程根目录
+- anchor 范围，如“今日队列全部题”“top-20 高频题型每类 1-2 题”
+- 可选参考答案：很多试卷扫描件有二维码链接官方/参考答案；用户扫码后提供图片或文本。OCR artifacts 中已有二维码图片时允许解码。
+- 可选根目录 `课程口径.md`
 
-Required files:
+## 必需文件
 
-- read/write: question-bank files containing the selected anchors under `10_题库/`
-- read optional: user-provided reference-answer images or text
-- write: folded solution blocks in those same question-bank files; no separate answer directory
+- 读写：`10_题库/` 下包含选定 anchor 的题库文件
+- 可选读取：用户提供的参考答案图片或文本
+- 写入：同一题库文件中的折叠解答块；不创建单独答案目录
 
-Steps:
+## 步骤
 
-1. Refuse selected questions marked `ocr_status: 待复核`; route them to S1 source verification before solving.
-2. With a reference answer: solve independently first → compare → if they agree, finalize. If they disagree, solve a second time and adjudicate whether the error is yours or the reference's (reference answers are NOT guaranteed correct); state the evidence for the verdict. Still unsure → mark `存疑` and leave it for the user.
-3. Without a reference answer: solve once, then self-check key steps (special-case substitution, reverse verification, magnitude/dimension checks); explicitly mark any step that cannot be self-verified.
-   Use the learning stage only to decide how fully to explain prerequisites and intermediate steps. Keep the method inside the confirmed course scope or supplied materials; if the required method's scope is uncertain, mark the solution `存疑` instead of importing an outside method.
-4. Write each solution as a folded callout block directly under its question (format in `schema-and-rules.md` → Solution Blocks), collapsed by default so the question surface stays clean.
-5. Title line carries the status: `已对照一致` / `与参考答案不一致（已裁决）` / `独立解答未对照` / `存疑`.
-6. Every block ends with a one-line correct first move (consumed directly by the S6 保底清单).
-7. Run `validate_course_artifacts.py --scope s9`.
+1. 拒绝 `ocr_status: 待复核` 的题目；先转 S1 source verification。
+2. 有参考答案时：先独立解题，再对照。若一致则 finalize。若不一致，再解一次并裁决错误来自自己还是参考答案；参考答案不保证正确。仍不确定则标 `存疑` 等用户裁决。
+3. 无参考答案时：解一次，再自检关键步骤，如特殊代换、反代验证、量纲/数量级检查；明确标出无法自检的步骤。
+   学习阶段只影响先修和中间步骤解释深度。方法必须留在已确认课程范围或源材料内；范围不确定时标 `存疑`，不要引入课外方法。
+4. 每个解答按 `schema-and-rules.md` 的 Solution Blocks 直接写在题目下，默认折叠，保持题面干净。
+5. 标题行携带状态：`已对照一致` / `与参考答案不一致（已裁决）` / `独立解答未对照` / `存疑`。
+6. 每个块末尾写一句正确第一步，供 S6 保底清单消费。
+7. 运行 `python <skill>/scripts/validate_course_artifacts.py --course-root <course-root> --scope s9`。
 
-Output:
+## 输出
 
-- folded solution blocks added under the selected questions
-- a list of `存疑` items needing user adjudication
+- 选定题目下新增或更新的折叠解答块
+- 需要用户裁决的 `存疑` 清单
 
-Boundary: only add or update solution blocks — never modify question text, anchors, or tags. Solutions are not a hard dependency for S3: simple questions are graded reliably by solving directly; spend S9 effort on hard and high-score questions.
+## 边界
+
+只添加或更新解答块，不改题面、anchor 或标签。解答不是 S3 硬依赖：简单题可由 S3 直接解题批改；S9 精力优先给高分和高频难题。S9 不负责现场教学，S10 main agent 消费这些解答作为证据和起手来源。

@@ -54,9 +54,9 @@ class RenderFrequencyViewsTests(unittest.TestCase):
         self.assertIn('x-axis ["T1"]', matrix)
         self.assertIn("schema 2.0", matrix)
         self.assertIn("高分杠杆", matrix)
-        self.assertLess(matrix.index("```", matrix.index("主题覆盖")), matrix.index("数据表｜期末历史与近期覆盖"))
-        self.assertLess(matrix.index("近期覆盖变化（百分点）"), matrix.index("数据表｜期末覆盖变化"))
-        self.assertLess(matrix.index("近期已知分值负担"), matrix.index("数据表｜期末近期分值负担"))
+        self.assertLess(matrix.index("```", matrix.index("主题年度覆盖")), matrix.index("数据表｜期末历史与近期年度覆盖"))
+        self.assertLess(matrix.index("近期年度覆盖变化（百分点）"), matrix.index("数据表｜期末年度覆盖变化"))
+        self.assertLess(matrix.index("近期累计已知分值"), matrix.index("数据表｜期末近期累计分值"))
         self.assertIn("## 主题A", theme)
         for year in range(2019, 2025):
             self.assertEqual(matrix.count(f"> | {year}-{year + 1} | 1 | 1 |"), 1)

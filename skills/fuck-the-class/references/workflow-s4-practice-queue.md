@@ -1,37 +1,51 @@
-# S4 Practice Queue
+# S4 练习候选上下文
 
-Purpose: generate "what should I do now?"
+目的：回答“现在可以拿哪些真实题来产生学习证据？”S4 不再用硬 ranking 替学生安排今日学习量，而是为 S10 main agent 准备候选上下文和推荐理由。
 
-Inputs:
+## 输入
 
-- question count `N`
-- optional chapter or question-type scope
-- optional mode: `常规`, `只出红区`, or `起手训练`
+- 题目数 `N`
+- 可选章节或题型范围
+- 可选模式：`常规`、`只出红区`、`起手训练`
 
-Required files:
+## 必需文件
 
-- read: `10_题库/*.md`
-- read: `10_题库/_标签库.md`
-- read: `30_我的数据/做题记录.md`
-- read: `30_我的数据/卡点清单.md`
-- read optional: `40_派生视图/考频矩阵.md`
-- write: `40_派生视图/当日队列.md`
+- 读取：`10_题库/*.md`
+- 读取：`10_题库/_标签库.md`
+- 读取：`30_我的数据/做题记录.md`
+- 读取：`30_我的数据/卡点清单.md`
+- 可选读取：`30_我的数据/学习事件.jsonl`
+- 可选读取：`40_派生视图/考频矩阵.md`
+- 写入：`40_派生视图/本轮练习候选.md`
 
-Steps:
+## 步骤
 
-1. Derive mastery states from `做题记录.md`.
-2. Rank by `frequency x mastery urgency x score`.
-3. Put unresolved red items first.
-4. Run `卡点检验`: if `卡点清单.md` contains a question type or mapped concept with no attempt records, raise its priority and actively sample questions for it. This specifically tests concepts that were hard during learning but have not yet appeared in practice data.
-5. Use never-attempted real questions before repeats within the same type. Hard-skip questions marked `ocr_status: 待复核`. A queue run cannot override this; route the question to S1 source verification first. Legacy missing status reads as `已做结构修复`.
-6. Include green-zone sampling only when useful and keep it at or below 15% of the queue.
-7. Exclude user-confirmed abandoned types.
-8. In `起手训练`, list only clean question links and ask for type judgement plus first move, not full solutions.
-9. In `只出红区`, an empty red set produces an explicit empty queue with the reason. Do not silently switch to `常规`, add yellow items, or invent a workload.
-10. Run `validate_course_artifacts.py --scope s4`.
+1. 从 `做题记录.md` 派生题型粗掌握状态。
+2. 为候选题收集证据特征，而不是只算一个最终分数：
+   - 考频/趋势证据；
+   - 粗掌握状态；
+   - 近期错因和开放诊断假设；
+   - 卡点重合；
+   - 题目分值和题型；
+   - OCR 状态和解答状态；
+   - 适合用途：`起手` / `标准题` / `变式` / `限时` / `反例`。
+3. 先列 unresolved red items，但把它们作为高优候选，不写成不可更改命令。
+4. 运行 `卡点检验`：如果 `卡点清单.md` 有题型或概念映射但无尝试记录，提高其候选优先级，并主动抽样真实题测试学习阶段卡点。
+5. 同一题型优先使用未尝试真实题，再考虑重复。硬跳过 `ocr_status: 待复核`；队列运行不能覆盖该限制，必须先转 S1 source verification。旧题缺失状态按 `已做结构修复` 读取。
+6. 绿色区抽样只在有用时加入，且不超过候选量 15%。
+7. 排除用户确认放弃的题型。
+8. `起手训练` 模式只列干净题目链接，要求判断题型和第一步，不要求完整解答。
+9. `只出红区` 模式下红区为空时，输出明确空候选和原因；不要静默切换常规、加入黄区或发明工作量。
+10. 在 `本轮练习候选.md` 中写：
+    - `候选池`：每题的证据特征；
+    - `本轮推荐`：main agent 可基于证据选择 1-N 项并说明理由；
+    - `可替代路径`：若用户想先听讲、先刷题、只练起手或只纠错，分别如何选择。
+11. 运行 `python <skill>/scripts/validate_course_artifacts.py --course-root <course-root> --scope s4`。
 
-Output:
+## 输出
 
-- `40_派生视图/当日队列.md`
+- `40_派生视图/本轮练习候选.md`
 
-Boundary: `N` is user-provided. Do not decide the day's workload.
+## 边界
+
+`N` 由用户提供。不要决定一天总学习量。S4 是候选上下文生成器，不是固定复习计划。S10 main agent 可以根据实时对话选择、改写或暂不使用 S4 推荐。

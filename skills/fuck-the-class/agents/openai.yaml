@@ -1,4 +1,4 @@
 interface:
   display_name: "Fuck The Class"
-  short_description: "Guided university exam prep bound to course evidence"
-  default_prompt: "Use $fuck-the-class to produce teacher-friendly, source-bound university exam preparation that students can follow step by step."
+  short_description: "绑定课程证据的大学应试与 AI 私教记忆层"
+  default_prompt: "使用 $fuck-the-class 进行绑定课程材料、题库、考频、卡点和学习事件的大学应试学习；让主线程 AI 私教基于证据自然讲解、主动追问、生成练习候选、批改复盘并沉淀可追溯学习状态。"

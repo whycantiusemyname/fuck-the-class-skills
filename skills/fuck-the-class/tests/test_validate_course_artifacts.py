@@ -77,6 +77,21 @@ class ValidateCourseArtifactsTests(unittest.TestCase):
         errors, _, _ = validator.validate(self.root, "s1")
         self.assertTrue(any("课程口径缺少章节" in error for error in errors))
 
+    def test_s1_requires_new_intake_metadata_fields(self):
+        (self.root / "10_题库" / "_标签库.md").write_text(
+            "# 标签库\n\n| 章节 | 能力主题 | 标准知识点标签 | 题数 |\n"
+            "|---|---|---|---:|\n| 第一章 | 主题A | `标签A` | 1 |\n",
+            encoding="utf-8",
+        )
+        question = self.root / "10_题库" / "卷_题面整理.md"
+        question.write_text(
+            "## 卷\n\n### 卷-选1\n\n%%\nchapter: 第一章\nquestion_type: 标签A\nsource: 卷\n%%\n\n题面\n",
+            encoding="utf-8",
+        )
+        errors, _, _ = validator.validate(self.root, "s1")
+        self.assertTrue(any("文档级 source/paper_type/academic_year" in error for error in errors))
+        self.assertTrue(any("question_form" in error and "ocr_status" in error for error in errors))
+
     def test_quote_evidence_verification(self):
         source = self.root / "20_知识" / "对话.md"
         source.write_text("第一行\n最终讲通的话\n第三行\n", encoding="utf-8")
@@ -99,8 +114,8 @@ class ValidateCourseArtifactsTests(unittest.TestCase):
         self.assertTrue(validator.quote_evidence_issues(self.root))
 
     def test_derived_marker_required(self):
-        path = self.root / "40_派生视图" / "当日队列.md"
-        path.write_text("# 当日队列\n", encoding="utf-8")
+        path = self.root / "40_派生视图" / validator.S4_CANDIDATE_FILE
+        path.write_text("# 本轮练习候选\n", encoding="utf-8")
         errors, _, _ = validator.validate(self.root, "s4")
         self.assertTrue(any("派生文件标记" in error for error in errors))
 
@@ -112,7 +127,7 @@ class ValidateCourseArtifactsTests(unittest.TestCase):
             "> [!note]- 解答｜状态：独立解答未对照\n> 解答\n> 起手：第一步\n",
             encoding="utf-8",
         )
-        queue = self.root / "40_派生视图" / "当日队列.md"
+        queue = self.root / "40_派生视图" / validator.S4_CANDIDATE_FILE
         queue.write_text(
             validator.DERIVED_MARKER + f"\n\n[[{self.root.name}/10_题库/卷_题面整理#卷-选1|题目]]\n",
             encoding="utf-8",
@@ -130,6 +145,57 @@ class ValidateCourseArtifactsTests(unittest.TestCase):
         cram.write_text(validator.DERIVED_MARKER + "\n\n- 起手：待 S9\n", encoding="utf-8")
         errors, _, _ = validator.validate(self.root, "s6")
         self.assertFalse(any("起手" in error for error in errors))
+
+    def test_s10_accepts_minimal_initialized_course(self):
+        events = self.root / "30_我的数据" / "学习事件.jsonl"
+        events.write_text("", encoding="utf-8")
+        errors, warnings, counts = validator.validate(self.root, "s10")
+        self.assertEqual(errors, [])
+        self.assertEqual(warnings, [])
+        self.assertEqual(counts, {"control": 0, "latex": 0, "links": 0})
+
+    def test_s10_rejects_invalid_jsonl_and_closed_fields(self):
+        events = self.root / "30_我的数据" / "学习事件.jsonl"
+        events.write_text(
+            "{not json}\n"
+            '{"event_id":"e1","time":"not-a-time","event_type":"probe","origin":"s10","evidence":"学生回答了问题","judgement":"错","coarse_wrong_cause":"概念错"}\n'
+            '{"event_id":"e2","time":"2026-06-19T00:00:00+08:00","event_type":"attempt","origin":"s10","evidence":"证据","confidence":"sure"}\n'
+            '{"event_id":"e2","time":"2026-06-19T00:00:00+08:00","event_type":"attempt","origin":"s3","evidence":"证据","diagnosis_hypothesis":"自行诊断","confidence":"low","next_probe":"追问"}\n',
+            encoding="utf-8",
+        )
+        errors, _, _ = validator.validate(self.root, "s10")
+        self.assertTrue(any("不是合法 JSON" in error for error in errors))
+        self.assertTrue(any("time 不是 ISO 8601" in error for error in errors))
+        self.assertTrue(any("非 attempt 事件不得写 judgement" in error for error in errors))
+        self.assertTrue(any("非 attempt 事件不得写 coarse_wrong_cause" in error for error in errors))
+        self.assertTrue(any("confidence 不在允许集合" in error for error in errors))
+        self.assertTrue(any("event_id 重复" in error for error in errors))
+        self.assertTrue(any("origin=s3 不得主动写 S10 字段" in error for error in errors))
+
+    def test_s10_validates_required_origin_hypothesis_and_source_refs(self):
+        question = self.root / "10_题库" / "卷_题面整理.md"
+        question.write_text("# 卷\n\n### 锚点1\n", encoding="utf-8")
+        events = self.root / "30_我的数据" / "学习事件.jsonl"
+        events.write_text(
+            '{"event_id":"e1","time":"2026-06-19T00:00:00+08:00","event_type":"repair","evidence":"证据","diagnosis_hypothesis":"方向混淆","confidence":"medium","source_refs":["[[测试课/10_题库/卷_题面整理#锚点1]]"]}\n'
+            '{"event_id":"e2","time":"2026-06-19T00:00:00+08:00","event_type":"repair","origin":"s10","evidence":"证据","diagnosis_hypothesis":"方向混淆","confidence":"medium","next_probe":"再判断一个方向","source_refs":["不是链接"]}\n',
+            encoding="utf-8",
+        )
+        errors, _, _ = validator.validate(self.root, "s10")
+        self.assertTrue(any("缺少必填字段" in error and "origin" in error for error in errors))
+        self.assertTrue(any("diagnosis_hypothesis 需要同时写 confidence 和 next_probe" in error for error in errors))
+        self.assertTrue(any("source_refs 必须使用 wikilink" in error for error in errors))
+
+    def test_s10_state_snapshot_requires_derived_marker(self):
+        events = self.root / "30_我的数据" / "学习事件.jsonl"
+        events.write_text("", encoding="utf-8")
+        snapshot = self.root / "40_派生视图" / "学生状态快照.md"
+        snapshot.write_text("# 学生状态快照\n", encoding="utf-8")
+        errors, _, _ = validator.validate(self.root, "s10")
+        self.assertTrue(any("派生文件标记" in error for error in errors))
+        snapshot.write_text(validator.DERIVED_MARKER + "\n\n# 学生状态快照\n", encoding="utf-8")
+        errors, _, _ = validator.validate(self.root, "s10")
+        self.assertFalse(any("派生文件标记" in error for error in errors))
 
 
 if __name__ == "__main__":

@@ -80,7 +80,7 @@ def question_anchors(path: Path) -> list[str]:
         if not match:
             continue
         metadata = analyzer.parse_metadata_block(lines, index)
-        if not metadata or not {"chapter", "question_type", "source"} <= metadata.keys():
+        if not metadata or not {"chapter", "question_type", "source", "question_form", "ocr_status"} <= metadata.keys():
             continue
         if metadata.get("question_type", "").startswith("真题整卷"):
             continue
@@ -119,7 +119,7 @@ def validate_completion_identity(source: Path, completion: Path) -> tuple[dict[s
 
 
 def manifest_path_for(course_root: Path, source: Path) -> Path:
-    return course_root / "90_缓存" / "s1-intake" / source.stem / "intake.json"
+    return course_root / "90_缓存" / "s1-intake" / f"{source.stem}-{sha256_file(source)[:8]}" / "intake.json"
 
 
 def find_duplicate_source(course_root: Path, source_hash: str, target: Path) -> Path | None:
@@ -190,10 +190,10 @@ def bind_manifest(
         "schema_version": SCHEMA_VERSION,
         "status": "complete",
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "source": {"path": str(source), "sha256": source_hash},
-        "completion": {"path": str(completion), "sha256": sha256_file(completion)},
+        "source": {"path": relative_or_absolute(source, course_root), "sha256": source_hash},
+        "completion": {"path": relative_or_absolute(completion, course_root), "sha256": sha256_file(completion)},
         "certified_markdown": {
-            "path": str(final_markdown),
+            "path": relative_or_absolute(final_markdown, course_root),
             "sha256": completion_payload["final_markdown_sha256"],
         },
         "outputs": output_records,
@@ -216,20 +216,23 @@ def bind_manifest(
 def verify_manifest(manifest_path: Path) -> None:
     manifest_path = manifest_path.resolve()
     payload = read_json(manifest_path)
+    course_root = manifest_path.parents[3]
     if payload.get("schema_version") != SCHEMA_VERSION or payload.get("status") != "complete":
         raise IntakeError("intake manifest schema/status 无效")
     for key in ("source", "completion", "certified_markdown"):
         record = payload.get(key, {})
-        path = Path(record.get("path", "")).resolve()
+        raw_path = Path(record.get("path", ""))
+        path = raw_path if raw_path.is_absolute() else course_root / raw_path
+        path = path.resolve()
         if not path.is_file() or sha256_file(path) != record.get("sha256"):
             raise IntakeError(f"intake manifest 的 {key} 哈希失配")
-    final_path = Path(payload["certified_markdown"]["path"])
+    raw_final_path = Path(payload["certified_markdown"]["path"])
+    final_path = raw_final_path if raw_final_path.is_absolute() else course_root / raw_final_path
     if not certified_markdown_allowed(final_path):
         raise IntakeError("intake manifest 指向被禁止的中间 Markdown")
     all_anchors: list[str] = []
     for record in payload.get("outputs", []):
         raw_path = Path(record.get("path", ""))
-        course_root = manifest_path.parents[3]
         path = raw_path if raw_path.is_absolute() else course_root / raw_path
         path = path.resolve()
         if not path.is_file() or sha256_file(path) != record.get("sha256"):

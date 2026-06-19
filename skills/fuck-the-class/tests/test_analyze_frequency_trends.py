@@ -175,6 +175,9 @@ class FrequencyTrendTests(unittest.TestCase):
         result = MODULE.build_analysis(self.root, 5)
         self.assertEqual(result["scope"]["paper_count"], 3)
         self.assertEqual(result["quality"]["unknown_year_paper_count"], 1)
+        recent = result["themes"][0]["exam_profiles"]["期末"]["recent"]
+        self.assertIn("year_coverage_rate", recent)
+        self.assertIn("known_score_per_paper", recent)
         row = next(row for row in result["year_series"] if row["academic_year"] == "2022-2023")
         self.assertEqual(row["paper_count"], 2)
 

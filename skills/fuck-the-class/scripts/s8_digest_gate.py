@@ -44,6 +44,16 @@ def resolve_record(course_root: Path, item: dict[str, str]) -> Path:
     return path.resolve() if path.is_absolute() else (course_root / path).resolve()
 
 
+def resolve_completion_markdown(course_root: Path, completion: Path, value: str) -> Path:
+    path = Path(value)
+    if path.is_absolute():
+        return path.resolve()
+    completion_relative = (completion.parent / path).resolve()
+    if completion_relative.is_file():
+        return completion_relative
+    return (course_root / path).resolve()
+
+
 def bind(
     course_root: Path,
     chapter: str,
@@ -64,7 +74,7 @@ def bind(
         if payload.get("status") != "complete" or payload.get("unresolved_count") != 0:
             raise DigestError(f"无效 completion.json：{completion}")
         completion_records.append(record(completion, course_root))
-        final = Path(payload.get("final_markdown", ""))
+        final = resolve_completion_markdown(course_root, completion, payload.get("final_markdown", ""))
         if not final.is_file() or sha256_file(final) != payload.get("final_markdown_sha256"):
             raise DigestError(f"completion 的认证 Markdown 哈希失配：{completion}")
     knowledge_root = (course_root / "20_知识").resolve()

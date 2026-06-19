@@ -19,7 +19,11 @@ class S1IntakeGateTests(unittest.TestCase):
         self.root = Path(self.temp.name) / "课程"
         (self.root / "10_题库").mkdir(parents=True)
         (self.root / "90_缓存" / "pdf-to-markdown" / "卷").mkdir(parents=True)
-        (self.root / "10_题库" / "_标签库.md").write_text("# 标签库\n", encoding="utf-8")
+        (self.root / "10_题库" / "_标签库.md").write_text(
+            "# 标签库\n\n| 章节 | 能力主题 | 标准知识点标签 | 题数 |\n"
+            "|---|---|---|---:|\n| 第一章 | 主题A | `标签A` | 1 |\n",
+            encoding="utf-8",
+        )
         self.source = self.root / "卷.pdf"
         self.source.write_bytes(b"pdf-source")
         self.final = self.root / "90_缓存" / "pdf-to-markdown" / "卷" / "卷.verified.md"
@@ -28,8 +32,10 @@ class S1IntakeGateTests(unittest.TestCase):
         self.write_completion(self.source, self.final, self.completion)
         self.output = self.root / "10_题库" / "卷_题面整理.md"
         self.output.write_text(
-            "## 卷\n\n### 24-25期末-选1\n\n%%\nchapter: 第一章\nquestion_type: 标签A\n"
-            "source: 2024-2025期末\nocr_status: 已对照 PDF 复核\n%%\n\n题面\n",
+            "## 卷\n\n%%\nchapter: 综合\nquestion_type: 真题整卷｜期末\n"
+            "source: 2024-2025期末\npaper_type: 期末\nacademic_year: 2024-2025\n%%\n\n"
+            "### 24-25期末-选1\n\n%%\nchapter: 第一章\nquestion_type: 标签A\n"
+            "source: 2024-2025期末\nquestion_form: 选择题\nocr_status: 已对照 PDF 复核\n%%\n\n题面\n",
             encoding="utf-8",
         )
 
@@ -52,6 +58,9 @@ class S1IntakeGateTests(unittest.TestCase):
         manifest = gate.bind_manifest(
             self.root, self.source, self.completion, [self.output], run_external=False
         )
+        payload = json.loads(manifest.read_text(encoding="utf-8"))
+        self.assertFalse(Path(payload["source"]["path"]).is_absolute())
+        self.assertIn(hashlib.sha256(self.source.read_bytes()).hexdigest()[:8], str(manifest))
         gate.verify_manifest(manifest)
         self.output.write_text(self.output.read_text(encoding="utf-8") + "变化\n", encoding="utf-8")
         with self.assertRaises(gate.IntakeError):

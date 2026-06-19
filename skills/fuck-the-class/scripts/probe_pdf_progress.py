@@ -36,11 +36,17 @@ def build_snapshot(work_dir: Path) -> dict[str, Any]:
             "segment_number": review.get("segment_number"),
             "status": review.get("status"),
             "pages_reviewed": review.get("pages_reviewed", []),
+            "blockers": review.get("blockers", []),
             "reviewed_at": review.get("reviewed_at"),
             "file": path.name,
         })
     completed = [row for row in reviews if row["status"] == "passed"]
     pages = sorted({page for row in completed for page in row["pages_reviewed"]})
+    review_blockers = sum(len(row.get("blockers", []) or []) for row in reviews)
+    state_blockers = len(state.get("blockers", []) or [])
+    unresolved_count = state.get("unresolved_count", 0)
+    if not isinstance(unresolved_count, int):
+        unresolved_count = 0
     return {
         "snapshot_version": 1,
         "captured_at": datetime.now(timezone.utc).isoformat(),
@@ -53,6 +59,8 @@ def build_snapshot(work_dir: Path) -> dict[str, Any]:
         "reviewed_page_count": len(pages),
         "reviewed_pages": pages,
         "review_count": len(reviews),
+        "blocker_count": state_blockers + review_blockers,
+        "unresolved_count": unresolved_count,
     }
 
 
@@ -70,6 +78,8 @@ def compare_snapshots(before: dict[str, Any], after: dict[str, Any]) -> tuple[bo
         )
     if after.get("reviewed_page_count", 0) > before.get("reviewed_page_count", 0):
         reasons.append(f"核对页数 {before.get('reviewed_page_count', 0)} -> {after.get('reviewed_page_count', 0)}")
+    if after.get("review_count", 0) > before.get("review_count", 0):
+        reasons.append(f"review 记录 {before.get('review_count', 0)} -> {after.get('review_count', 0)}")
     return bool(reasons), reasons
 
 
@@ -100,7 +110,8 @@ def main(argv: list[str] | None = None) -> int:
             write_snapshot(args.output, payload)
             print(
                 f"PDF 进度快照：状态 {payload['status']}，完成分段 {payload['completed_segment_count']}，"
-                f"核对页数 {payload['reviewed_page_count']}"
+                f"核对页数 {payload['reviewed_page_count']}，blocker {payload['blocker_count']}，"
+                f"未决 {payload['unresolved_count']}"
             )
             return 0
         progressed, reasons = compare_snapshots(read_json(args.before), read_json(args.after))

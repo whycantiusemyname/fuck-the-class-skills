@@ -1,43 +1,45 @@
-# S1 Paper Intake
+# S1 试卷入库
 
-Purpose: turn a paper, homework set, scan, photo batch, or existing text into a tagged question-bank file; also backfill knowledge-level tags onto already-ingested questions (`精标回填` mode).
+目的：把试卷、作业、扫描件、照片批次或已有文本整理成带标签的题库文件；也支持对已入库题目做知识标签精标回填。
 
-Inputs:
+## 输入
 
-- source file or screenshots
-- course root
-- mode: `入库` (default) or `精标回填`
-- optional naming convention for anchors
-- optional seed vocabulary: a validated tag library from an earlier project of the same course, or the `未对齐题型名` lists at the end of `20_知识/` chapter notes
+- 源文件或截图
+- 课程根目录
+- 模式：`入库` 默认，或 `精标回填`
+- 可选 anchor 命名约定
+- 可选种子词表：同课程旧项目的已验证标签库，或 `20_知识/` 章节笔记末尾的 `未对齐题型名`
 
-Required files:
+## 必需文件
 
-- read: source file, preferably under `00_原材料/`
-- read/write: `10_题库/_标签库.md`
-- read optional: `20_知识/` for chapter mapping and `未对齐题型名` lists
-- write: `10_题库/<卷名>题面整理.md`
-- for every PDF, including scanned PDF: verified cache `90_缓存/pdf-to-markdown/<source-stem>/` containing `completion.json`
+- 读取：源文件，最好放在 `00_原材料/`
+- 读写：`10_题库/_标签库.md`
+- 可选读取：`20_知识/` 用于章节映射和 `未对齐题型名`
+- 写入：`10_题库/<卷名>题面整理.md`
+- 每个 PDF，包括扫描 PDF，都需要已验证 cache：`90_缓存/pdf-to-markdown/<source-stem>/completion.json`
 
-Steps:
+## 步骤
 
-1. If the source is a PDF, including a scanned PDF, execute Gate 0 and Gate 1 from `pdf-ingestion.md` exactly. Continue only after the current source, certified Markdown, verified segments, page coverage, and zero unresolved items pass the independent completion verifier; never consume drafts, standalone intermediate segments, or a natural-language success claim. For standalone photos, work directly from the images and retain any visual uncertainty for user confirmation.
-2. Before writing, check `90_缓存/s1-intake/*/intake.json` for the same source SHA-256. A complete existing binding means the source was already ingested; stop instead of creating duplicate anchors.
-3. Cold start: when `_标签库.md` is empty or has no knowledge-level types, build the vocabulary BEFORE tagging — import the user's seed vocabulary first; without one, draft an initial knowledge-level vocabulary from `20_知识/` chapter notes (`未对齐题型名`) or the courseware table of contents. Never dump every question into form-level placeholder tags (`选择题｜待精标` and the like) just because the vocabulary is empty. Placeholder tags are allowed only for individual questions that genuinely cannot be judged, and the output must report how many and which action will resolve them.
-4. Split a merged scan bundle into separate papers, then split each paper into individual questions without solving them.
-5. Assign anchors using the course convention.
-6. Write clean question text in Markdown with LaTeX math.
-7. Add document-level `paper_type` and `academic_year`. Add per-question `chapter`, `question_type`, `question_form`, and `ocr_status`. Use `待复核` when concrete source uncertainty remains, `已对照 PDF 复核` only after source comparison, and otherwise `已做结构修复`.
-8. Select `question_type` from `_标签库.md` and use its existing capability-theme mapping. When no tag fits, apply tag governance; any new tag must receive exactly one capability theme in the same operation.
-9. Update `_标签库.md` counts and verify that every controlled tag has one capability theme.
-10. `精标回填` mode: leave question text, anchors, and solution blocks untouched; replace placeholder/undetermined knowledge tags, fill missing `question_form` fields when requested, repair paper metadata when factual evidence exists, and complete capability-theme mappings in `_标签库.md`. Do not bulk-upgrade legacy OCR states.
-11. Run `validate_course_artifacts.py --scope s1`.
-12. For PDF intake, run `s1_intake_gate.py bind` with the exact source PDF, completion.json, every output paper, and the `$pdf-to-markdown` skill path. Then run `s1_intake_gate.py verify` on the written manifest. S1 is not complete until both pass.
-13. Report question-form completeness, OCR-status counts, capability-theme mapping completeness, and the intake manifest path. Remind the user to regenerate S2 after any source-data change.
+1. 若源文件是 PDF，包括扫描 PDF，严格执行 `pdf-ingestion.md` 的 Gate 0 和 Gate 1。只有当前源文件、认证 Markdown、已验证分段、页覆盖和零 unresolved items 全部通过独立 completion verifier 后才能继续。不要消费 draft、独立中间分段或自然语言成功声明。独立照片可直接读图，并保留视觉不确定性等待确认。
+2. 若是 PDF 入库，写入前检查 `90_缓存/s1-intake/*/intake.json` 是否已有相同源 SHA-256。完整绑定表示源文件已入库，停止而不是创建重复 anchor。照片、截图或已有文本入库暂不要求 s1-intake manifest；需要去重时，把源文件 hash 写入轻量 source ledger 或在本次报告中列明。
+3. 冷启动时，如果 `_标签库.md` 为空或没有知识层标签，先建词表再打标。优先导入用户给的种子词表；没有种子时，从 `20_知识/` 的 `未对齐题型名` 或课件目录草拟初始知识层词表。不要因为词表空就把所有题丢进 `选择题｜待精标` 之类形式占位。占位标签只用于确实无法判断的个别题，并报告数量和后续解决动作。
+4. 把合并扫描包拆成不同试卷，再把每份试卷拆成单题；S1 不解题。
+5. 按课程约定分配 anchor。
+6. 用 Markdown 和 LaTeX 写干净题面。
+7. 写文档级 `paper_type`、`academic_year`；写题目级 `chapter`、`question_type`、`question_form`、`ocr_status`。具体来源不确定时用 `待复核`；只有对照认证来源后才能用 `已对照 PDF 复核`；其余用 `已做结构修复`。
+8. 从 `_标签库.md` 选择 `question_type`，并使用已有 capability-theme 映射。没有合适标签时按标签治理新增，且同一操作内给新标签分配唯一 capability theme。
+9. 更新 `_标签库.md` 计数，并确认每个受控标签都有唯一 capability theme。
+10. `精标回填` 模式：不改题面、anchor 和解答块；只替换占位/未判定知识标签、按请求补缺失 `question_form`、在有事实证据时修复试卷元数据、补全 `_标签库.md` 的 capability-theme 映射。不要批量升级旧 OCR 状态。
+11. 运行 `python <skill>/scripts/validate_course_artifacts.py --course-root <course-root> --scope s1`。
+12. PDF 入库时，用准确源 PDF、completion.json、每个输出试卷和 `$pdf-to-markdown` skill 路径运行 `s1_intake_gate.py bind`，再运行 `s1_intake_gate.py verify`。二者未通过前 S1 不完成。
+13. 报告题型形式完整度、OCR 状态计数、capability-theme 映射完整度和 intake manifest 路径。提醒用户源数据变化后需要重新生成 S2。
 
-Output:
+## 输出
 
-- `10_题库/<卷名>题面整理.md` — strictly one paper per file; merged scan bundles MUST be split into separate per-paper files
-- tag-library change summary
-- paper metadata, question-form completeness, and capability-theme mapping summary
+- `10_题库/<卷名>题面整理.md`，严格一份试卷一个文件；合并扫描包必须拆成多份试卷文件
+- 标签库变更摘要
+- 试卷元数据、题型形式完整度、capability-theme 映射摘要
 
-Boundary: before the PDF completion gate passes, do not split questions, modify `_标签库.md`, or create/update anything under `10_题库/`. While a child conversion agent is running, the S1 parent must not write any child-owned conversion artifact or run finalization on the child's behalf. The S1 parent must never create or repair `completion.json`. The only consumable PDF text is the certificate's current `final_markdown`; `draft.md`, `.mineru.md`, `source/`, and `repaired/` are forbidden. Do not write answers or analysis in S1; route a solution request to S9 after intake.
+## 边界
+
+PDF completion gate 通过前，不拆题、不改 `_标签库.md`、不创建或更新 `10_题库/`。转换子代理运行时，S1 parent 不写子代理拥有的转换产物，不替子代理 finalize。S1 parent 永远不创建或修复 `completion.json`。唯一可消费的 PDF 文本是 certificate 当前 `final_markdown`；禁止消费 `draft.md`、`.mineru.md`、`source/`、`repaired/`。S1 不写答案或解析；需要解答时转 S9。

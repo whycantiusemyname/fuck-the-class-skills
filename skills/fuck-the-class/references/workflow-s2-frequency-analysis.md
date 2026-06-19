@@ -1,56 +1,56 @@
-# S2 Frequency And Trend Analysis
+# S2 考频与趋势分析
 
-Purpose: answer "what matters, what is changing, how is it being tested now, and which real questions represent it?"
+目的：回答“什么重要、什么在变、现在怎么考、哪些真题代表它”。
 
-Inputs:
+## 输入
 
-- course root
-- target exam when known, such as `期中` or `期末`
-- optional chapter scope
-- optional `recent_year_span`; default `5`
+- 课程根目录
+- 已知目标考试，如 `期中` 或 `期末`
+- 可选章节范围
+- 可选 `recent_year_span`，默认 `5`
 
-Required files:
+## 必需文件
 
-- read: all `10_题库/*题面整理.md`
-- read: `10_题库/_标签库.md`
-- read optional: `30_我的数据/做题记录.md`, `30_我的数据/卡点清单.md`, `20_知识/`, and existing folded solution blocks
-- write cache: `90_缓存/s2-frequency-analysis.json`
-- write views: `40_派生视图/考频矩阵.md`, `40_派生视图/主题题表.md`
+- 读取：全部 `10_题库/*题面整理.md`
+- 读取：`10_题库/_标签库.md`
+- 可选读取：`30_我的数据/做题记录.md`、`30_我的数据/卡点清单.md`、`30_我的数据/学习事件.jsonl`、`20_知识/`、已有折叠解答块
+- 写 cache：`90_缓存/s2-frequency-analysis.json`
+- 写视图：`40_派生视图/考频矩阵.md`、`40_派生视图/主题题表.md`
 
-## Deterministic Gate
+## 确定性 Gate
 
-1. Verify that `_标签库.md` uses `章节｜能力主题｜标准知识点标签｜题数` and that every knowledge tag maps to exactly one theme.
-2. Run:
+1. 验证 `_标签库.md` 使用 `章节｜能力主题｜标准知识点标签｜题数`，且每个知识标签只映射到一个主题。
+2. 运行：
 
    ```text
    python <skill>/scripts/analyze_frequency_trends.py --course-root <course-root> --recent-year-span 5 --output <course-root>/90_缓存/s2-frequency-analysis.json
    ```
 
-3. Stop if the command returns nonzero or JSON `status` is not `complete`. Report the exact parser, anchor, tag-count, or theme-mapping errors; do not create new derived views.
-4. Before consuming an existing JSON, run the same script with `--verify <json-path>`. Reject stale input fingerprints.
-5. Treat the script as authoritative for metadata parsing, legacy question-form inference, academic-year buckets, A/B paper merging, score handling, trend labels, form shifts, and method migration. Do not recalculate these with ad hoc shell or model logic.
-6. Run the deterministic renderer:
+3. 命令非零或 JSON `status` 不是 `complete` 时停止。报告准确 parser、anchor、tag-count 或 theme-mapping 错误，不创建派生视图。
+4. 消费已有 JSON 前，先用同一脚本 `--verify <json-path>`。拒绝 stale input fingerprint。
+5. 元数据解析、旧题型形式推断、学年 bucket、A/B 卷合并、分值处理、趋势标签、题型变化和考法迁移都以脚本为权威。不要用 shell 或模型临场重算。
+6. 运行 renderer：
 
    ```text
    python <skill>/scripts/render_frequency_views.py --course-root <course-root> --analysis <course-root>/90_缓存/s2-frequency-analysis.json
    ```
 
-7. Run the renderer again with `--verify`, then run `validate_course_artifacts.py --scope s2`. Either nonzero exit blocks completion. Do not write, rewrite, or polish either Markdown view outside the renderer.
+7. 再运行 renderer `--verify`，然后运行 `python <skill>/scripts/validate_course_artifacts.py --course-root <course-root> --scope s2`。任何非零退出都阻塞完成。不要在 renderer 之外手写、润色或补行两个 Markdown 视图。
 
-## Interpretation Rules
+## 解读规则
 
-1. Keep exam populations separate. Never mix `期中`, `期末`, and `其他` denominators in one importance or trend claim.
-2. Present three distinct layers:
-   - importance: paper coverage, question load, and known-score burden;
-   - time trend: `首次成势`, `沉寂后回归`, `新近升温`, `明显降温`, `稳定核心`, `周期波动`, `平稳观察`, or `样本不足`;
-   - test-method change: `大题化`, `小题化`, and theme-level `考法迁移`.
-3. Quote the JSON evidence with every trend claim: historical numerator/denominator, recent numerator/denominator, percentage-point change, form or median-score change, and linked representatives. A label without its raw evidence is invalid.
-4. Keep objective exam evidence separate from personal urgency. Before enough attempt records exist, use neutral roles such as `高频基础`, `高频主力`, `高分杠杆`, `低频风险`, and `低频观察`.
-5. Unknown-year papers contribute to total frequency only. `score <= 0` is unknown, not zero. `question_form: 未判定` stays visible in quality reporting and never counts as a small or long form.
+1. 考试总体分开。不要把 `期中`、`期末`、`其他` 的分母混在同一个重要性或趋势判断里。
+2. 展示三层：
+   - 重要性：年度覆盖、题量、近期累计已知分值和必要时的每卷平均已知分值；
+   - 时间趋势：`首次成势`、`沉寂后回归`、`新近升温`、`明显降温`、`稳定核心`、`周期波动`、`平稳观察`、`样本不足`；
+   - 考法变化：`大题化`、`小题化`、主题级 `考法迁移`。
+3. 每个趋势判断都引用 JSON 证据：历史分子/分母、近期分子/分母、百分点变化、题型或中位分变化、代表题链接。没有原始证据的标签无效。
+4. 客观考试证据和个人紧迫度分开。做题记录不足时，用 `高频基础`、`高频主力`、`高分杠杆`、`低频风险`、`低频观察` 等中性角色。
+5. 未知年份试卷只参与总频率。`score <= 0` 表示未知，不是零分。`question_form: 未判定` 保持在质量报告中，不计入小题或大题。
 
 ## `考频矩阵.md`
 
-The renderer regenerates the whole file in this order:
+renderer 整体重建，顺序：
 
 1. `一眼看重点`
 2. `趋势预警`
@@ -60,34 +60,36 @@ The renderer regenerates the whole file in this order:
 6. `低频与降温信号`
 7. `完整趋势与分卷证据附录`
 
-Requirements:
+要求：
 
-- Start with the exact derived marker from `schema-and-rules.md`.
-- Put native Obsidian Mermaid charts first: historical vs recent coverage, coverage change in percentage points, and known-score burden. Chart axes use stable `T1...Tn` identifiers; the folded evidence table maps every identifier to the full theme name.
-- Follow each chart with the same values in a collapsed `[!info]-` table.
-- Keep every Markdown table in both S2 outputs inside a collapsed `[!info]-` callout. Keep headings, charts, warnings, and judgements visible.
-- Split `趋势预警` by exam population. Prioritize `首次成势`, `沉寂后回归`, `新近升温`, `大题化`, `考法迁移`, and `明显降温`; show at most eight visible items per category and fold the remainder into the complete trend table.
-- Sort alerts by script trend priority, absolute coverage change, recent coverage, then recent known-score burden.
-- Put full tag rankings, year series, question-form evidence, and paper matrices in folded appendices.
-- Distinguish `近年仍出现`, `近年消失`, and `证据不足`; never turn low frequency alone into an abandon decision.
+- 第一行是 schema 中的派生文件标记。
+- Obsidian Mermaid 图优先展示：历史 vs 近期年度覆盖、年度覆盖百分点变化、近期累计已知分值。坐标轴使用稳定 `T1...Tn`，折叠证据表映射到完整主题名。
+- 每张图后用折叠 `[!info]-` 表给同一数值。
+- 两个 S2 输出中的 Markdown 表都放进折叠 `[!info]-` callout；标题、图、警告和判断保持可见。
+- `趋势预警` 按考试总体拆分。优先 `首次成势`、`沉寂后回归`、`新近升温`、`大题化`、`考法迁移`、`明显降温`；每类最多 8 个可见项，其余放进完整趋势表。
+- 警报排序按脚本趋势优先级、年度覆盖变化绝对值、近期年度覆盖、近期累计已知分值。
+- 完整标签排序、年份序列、题型证据和试卷矩阵放在折叠附录。
+- 区分 `近年仍出现`、`近年消失`、`证据不足`；不要仅凭低频给出放弃结论。
 
 ## `主题题表.md`
 
-The renderer gives every capability theme one stable, unique heading using the exact controlled theme name. For each exam population, show:
+renderer 为每个能力主题生成一个稳定唯一标题，使用精确受控主题名。每个考试总体展示：
 
-- objective exam role;
-- primary and secondary trends;
-- historical coverage to recent coverage;
-- historical form structure to recent form structure;
-- historical dominant tag to recent dominant tag;
-- one historical representative and up to two recent representatives from the JSON.
+- 客观考试角色；
+- 主趋势和副趋势；
+- 历史年度覆盖到近期年度覆盖；
+- 历史题型结构到近期题型结构；
+- 历史主导标签到近期主导标签；
+- 一个历史代表题和最多两个近期代表题。
 
-Use vault-root-relative links for every theme and question. Add a one-line starter only when it comes from a non-`存疑` S9 solution block. S2 must not solve questions or paraphrase a knowledge note to fill a missing starter.
+每个主题和题目都用 vault-root-relative 链接。只有来自非 `存疑` S9 解答块时才加一句起手。S2 不解题，也不转述知识笔记来填缺失起手。
 
-Output:
+## 输出
 
-- `90_缓存/s2-frequency-analysis.json` — deterministic, hash-bound evidence
-- `40_派生视图/考频矩阵.md` — importance, trend warnings, judgements, and folded evidence
-- `40_派生视图/主题题表.md` — theme navigation with historical and recent representatives
+- `90_缓存/s2-frequency-analysis.json`：确定性、hash-bound 证据
+- `40_派生视图/考频矩阵.md`：重要性、趋势预警、判断和折叠证据
+- `40_派生视图/主题题表.md`：主题导航和历史/近期代表题
 
-Boundary: S2 reads source data and writes only its cache and derived views. The analysis script owns evidence and classifications; the renderer owns both Markdown files. The executing Agent may not add free-form rows or judgements after rendering. S2 must not repair question metadata, tags, counts, theme mappings, question text, or solutions; route those changes to S1.
+## 边界
+
+S2 只读源数据，只写 cache 和派生视图。分析脚本拥有证据和分类，renderer 拥有两个 Markdown 文件。执行 Agent 不得在渲染后追加自由文本行或判断。S2 不修复题目元数据、标签、计数、主题映射、题面或解答；这些改动转 S1。

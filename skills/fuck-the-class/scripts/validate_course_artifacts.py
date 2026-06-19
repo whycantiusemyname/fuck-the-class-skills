@@ -5,11 +5,14 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import unquote
 
+import analyze_frequency_trends as analyzer
 import render_frequency_views as renderer
 import course_profile
 
@@ -21,12 +24,30 @@ WIKILINK_RE = re.compile(r"!?\[\[([^\]]+)\]\]")
 MARKDOWN_LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
 HEADING_RE = re.compile(r"^#{1,6}\s+(.+?)\s*#*\s*$", re.MULTILINE)
 DERIVED_MARKER = "> 派生文件，可重新生成，勿手改。"
-SCOPES = {"s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "all"}
+SCOPES = {"s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "all"}
 S7_ITEM_MARKER_RE = re.compile(r"^<!-- s7-item:([0-9a-fA-F]{64}):([^:]+):(.+?) -->$")
 S7_CURRENT_TYPES = {"用户提问", "明确疑问", "被纠正的误解", "最终讲通解释"}
 S7_LEGACY_TYPES = {"追问≥2轮"}
 S7_ALLOWED_TYPES = S7_CURRENT_TYPES | S7_LEGACY_TYPES
 S7_RANGE_LIST_RE = re.compile(r"^\d+-\d+(?:,\s*\d+-\d+)*$")
+S10_EVENT_TYPES = {"attempt", "question", "explanation", "probe", "repair", "variant", "reflection", "state_update"}
+S10_CONFIDENCE = {"low", "medium", "high"}
+S10_JUDGEMENTS = {"对", "对但慢", "卡", "错", "空"}
+S10_WRONG_CAUSES = {"概念错", "起手错", "计算错", "审题错", "没思路"}
+S10_ORIGINS = {"s3", "s10", "manual", "import"}
+S10_CREATED_BY = {"main_agent", "subagent", "user", "script"}
+S10_OUTCOMES = {
+    "not_tested",
+    "observed",
+    "repaired_independently",
+    "repaired_with_hint",
+    "needs_followup",
+    "not_repaired",
+    "deferred",
+}
+S10_S3_FORBIDDEN_FIELDS = {"diagnosis_hypothesis", "next_probe", "tutor_action", "hint_level"}
+S5_HYPOTHESIS_MARKER_RE = re.compile(r"^<!-- s5-hypothesis:([^:]+):([^:]+):([0-9a-fA-F]{8}) -->$")
+S4_CANDIDATE_FILE = "本轮练习候选.md"
 
 
 class ValidationConfigError(Exception):
@@ -46,12 +67,13 @@ def selected_markdown(course_root: Path, scope: str) -> list[Path]:
         "s1": [course_root / "10_题库"],
         "s2": [course_root / "40_派生视图" / "考频矩阵.md", course_root / "40_派生视图" / "主题题表.md"],
         "s3": [course_root / "30_我的数据" / "做题记录.md"],
-        "s4": [course_root / "40_派生视图" / "当日队列.md"],
+        "s4": [course_root / "40_派生视图" / S4_CANDIDATE_FILE],
         "s5": [course_root / "40_派生视图" / "复盘报告.md", course_root / "30_我的数据" / "卡点清单.md"],
         "s6": [course_root / "40_派生视图" / "冲刺包.md", course_root / "40_派生视图" / "模拟卷.md"],
         "s7": [course_root / "30_我的数据" / "卡点清单.md"],
         "s8": [course_root / "20_知识"],
         "s9": [course_root / "10_题库"],
+        "s10": [course_root / "40_派生视图" / "学生状态快照.md"],
         "all": [course_root / name for name in ("10_题库", "20_知识", "30_我的数据", "40_派生视图")],
     }
     paths: list[Path] = []
@@ -174,6 +196,55 @@ def derived_marker_issues(course_root: Path, files: list[Path]) -> list[str]:
             continue
         if read_text(path).splitlines()[:1] != [DERIVED_MARKER]:
             issues.append(f"{path}: 缺少派生文件标记")
+    return issues
+
+
+def s1_artifact_issues(course_root: Path) -> list[str]:
+    question_dir = course_root / "10_题库"
+    question_files = sorted(question_dir.glob("*题面整理.md"))
+    tag_library = question_dir / "_标签库.md"
+    if not question_files and not tag_library.exists():
+        return []
+    issues: list[str] = []
+    if not tag_library.exists():
+        issues.append(f"缺少 S1 标签库：{tag_library}")
+        return issues
+    try:
+        definitions = analyzer.parse_tag_library(tag_library)
+        analyzer.parse_question_files(course_root, definitions)
+    except analyzer.AnalysisBlocked as exc:
+        issues.extend(str(error) for error in exc.errors)
+
+    for path in question_files:
+        lines = read_text(path).splitlines()
+        first_heading_index = next(
+            (index for index, line in enumerate(lines) if re.match(r"^#{1,6}\s+", line)),
+            None,
+        )
+        paper_metadata = analyzer.parse_metadata_block(lines, first_heading_index) if first_heading_index is not None else None
+        if not paper_metadata or not {"source", "paper_type", "academic_year"} <= paper_metadata.keys():
+            issues.append(f"{path}: 新 S1 题库文件缺少文档级 source/paper_type/academic_year 元数据")
+
+        matches = list(re.finditer(r"^###\s+(.+?)\s*$", read_text(path), flags=re.MULTILINE))
+        text = read_text(path)
+        for index, match in enumerate(matches):
+            block_start = match.end()
+            block_end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+            block_lines = text[block_start:block_end].splitlines()
+            anchor = match.group(1).strip()
+            metadata = analyzer.parse_metadata_block([f"### {anchor}", *block_lines], 0)
+            if metadata is None:
+                issues.append(f"{path}#{anchor}: 缺少题目隐藏标签")
+                continue
+            if metadata.get("question_type", "").startswith("真题整卷"):
+                continue
+            missing = {"chapter", "question_type", "source", "question_form", "ocr_status"} - metadata.keys()
+            if missing:
+                issues.append(f"{path}#{anchor}: 新 S1 题目缺少字段 {sorted(missing)}")
+            if "paper_type" not in metadata and (not paper_metadata or "paper_type" not in paper_metadata):
+                issues.append(f"{path}#{anchor}: 缺少 paper_type（题目级或文档级）")
+            if "academic_year" not in metadata and (not paper_metadata or "academic_year" not in paper_metadata):
+                issues.append(f"{path}#{anchor}: 缺少 academic_year（题目级或文档级；未知也要显式写 未知）")
     return issues
 
 
@@ -349,6 +420,121 @@ def quote_evidence_issues(course_root: Path) -> list[str]:
     return issues
 
 
+def s10_learning_event_issues(course_root: Path) -> list[str]:
+    events = course_root / "30_我的数据" / "学习事件.jsonl"
+    issues: list[str] = []
+    if not events.exists():
+        return [f"缺少 S10 学习事件文件：{events}"]
+    event_ids: dict[str, int] = {}
+    for line_number, line in enumerate(read_text(events).splitlines(), start=1):
+        if not line.strip():
+            continue
+        try:
+            item = json.loads(line)
+        except json.JSONDecodeError as exc:
+            issues.append(f"{events}:{line_number}: 不是合法 JSON：{exc.msg}")
+            continue
+        if not isinstance(item, dict):
+            issues.append(f"{events}:{line_number}: JSONL 每行必须是对象")
+            continue
+        missing = {"event_id", "time", "event_type", "evidence", "origin"} - item.keys()
+        if missing:
+            issues.append(f"{events}:{line_number}: 缺少必填字段 {sorted(missing)}")
+        event_id = item.get("event_id")
+        if isinstance(event_id, str) and event_id:
+            if event_id in event_ids:
+                issues.append(f"{events}:{line_number}: event_id 重复，首次出现在第 {event_ids[event_id]} 行")
+            else:
+                event_ids[event_id] = line_number
+        time_value = item.get("time")
+        if isinstance(time_value, str):
+            try:
+                datetime.fromisoformat(time_value.replace("Z", "+00:00"))
+            except ValueError:
+                issues.append(f"{events}:{line_number}: time 不是 ISO 8601 时间：{time_value}")
+        elif time_value is not None:
+            issues.append(f"{events}:{line_number}: time 必须是字符串")
+        event_type = item.get("event_type")
+        if event_type not in S10_EVENT_TYPES:
+            issues.append(f"{events}:{line_number}: event_type 不在允许集合中：{event_type}")
+        origin = item.get("origin")
+        if origin is not None and origin not in S10_ORIGINS:
+            issues.append(f"{events}:{line_number}: origin 不在允许集合中：{origin}")
+        created_by = item.get("created_by")
+        if created_by is not None and created_by not in S10_CREATED_BY:
+            issues.append(f"{events}:{line_number}: created_by 不在允许集合中：{created_by}")
+        outcome = item.get("outcome")
+        if outcome is not None and outcome not in S10_OUTCOMES:
+            issues.append(f"{events}:{line_number}: outcome 不在允许集合中：{outcome}")
+        if origin == "s3":
+            if event_type != "attempt":
+                issues.append(f"{events}:{line_number}: origin=s3 只能写 attempt 事件")
+            forbidden = sorted(field for field in S10_S3_FORBIDDEN_FIELDS if field in item)
+            if forbidden:
+                issues.append(f"{events}:{line_number}: origin=s3 不得主动写 S10 字段 {forbidden}")
+        confidence = item.get("confidence")
+        if confidence is not None and confidence not in S10_CONFIDENCE:
+            issues.append(f"{events}:{line_number}: confidence 不在允许集合中：{confidence}")
+        judgement = item.get("judgement")
+        if judgement is not None:
+            if event_type != "attempt":
+                issues.append(f"{events}:{line_number}: 非 attempt 事件不得写 judgement")
+            if judgement not in S10_JUDGEMENTS:
+                issues.append(f"{events}:{line_number}: judgement 不在允许集合中：{judgement}")
+        wrong_cause = item.get("coarse_wrong_cause")
+        if wrong_cause is not None:
+            if event_type != "attempt":
+                issues.append(f"{events}:{line_number}: 非 attempt 事件不得写 coarse_wrong_cause")
+            if wrong_cause not in S10_WRONG_CAUSES:
+                issues.append(f"{events}:{line_number}: coarse_wrong_cause 不在允许集合中：{wrong_cause}")
+        if item.get("diagnosis_hypothesis") and (not item.get("confidence") or not item.get("next_probe")):
+            issues.append(f"{events}:{line_number}: diagnosis_hypothesis 需要同时写 confidence 和 next_probe")
+        source_refs = item.get("source_refs")
+        if source_refs is not None and (
+            not isinstance(source_refs, list) or any(not isinstance(ref, str) for ref in source_refs)
+        ):
+            issues.append(f"{events}:{line_number}: source_refs 必须是字符串数组")
+        elif isinstance(source_refs, list):
+            for ref in source_refs:
+                if not re.fullmatch(r"!?\[\[[^\]]+\]\]", ref.strip()):
+                    issues.append(f"{events}:{line_number}: source_refs 必须使用 wikilink：{ref}")
+                    continue
+                target, _ = split_wikilink(ref.strip().lstrip("!")[2:-2])
+                if target.startswith("#"):
+                    continue
+                file_part, separator, heading = target.partition("#")
+                resolved = resolve_vault_path(course_root.parent, file_part)
+                if resolved is None:
+                    issues.append(f"{events}:{line_number}: source_refs 断链 {ref}")
+                elif separator and not heading_exists(resolved, heading):
+                    issues.append(f"{events}:{line_number}: source_refs 缺少标题 {ref}")
+        evidence = item.get("evidence")
+        if evidence is not None and (not isinstance(evidence, str) or not evidence.strip()):
+            issues.append(f"{events}:{line_number}: evidence 必须是非空字符串")
+    return issues
+
+
+def s5_marker_issues(course_root: Path) -> list[str]:
+    blocker = course_root / "30_我的数据" / "卡点清单.md"
+    if not blocker.exists():
+        return []
+    issues: list[str] = []
+    seen: dict[tuple[str, str, str], int] = {}
+    for line_number, line in enumerate(read_text(blocker).splitlines(), start=1):
+        if not line.startswith("<!-- s5-hypothesis:"):
+            continue
+        match = S5_HYPOTHESIS_MARKER_RE.fullmatch(line.strip())
+        if not match:
+            issues.append(f"{blocker}:{line_number}: S5 hypothesis marker 格式错误")
+            continue
+        key = tuple(part.lower() for part in match.groups())
+        if key in seen:
+            issues.append(f"{blocker}:{line_number}: S5 hypothesis marker 重复，首次出现在第 {seen[key]} 行")
+        else:
+            seen[key] = line_number
+    return issues
+
+
 def question_statuses(course_root: Path) -> dict[str, tuple[str, Path, str]]:
     statuses: dict[str, tuple[str, Path, str]] = {}
     for path in sorted((course_root / "10_题库").glob("*题面整理.md")):
@@ -378,7 +564,7 @@ def ocr_consumption_issues(course_root: Path, scope: str) -> list[str]:
     statuses = question_statuses(course_root)
     issues: list[str] = []
     if scope in {"s4", "all"}:
-        queue = course_root / "40_派生视图" / "当日队列.md"
+        queue = course_root / "40_派生视图" / S4_CANDIDATE_FILE
         for anchor in linked_anchors(queue):
             if statuses.get(anchor, (None, None, None))[0] == "待复核":
                 issues.append(f"{queue}: 队列消费了待复核题 {anchor}")
@@ -418,10 +604,10 @@ def starter_provenance_issues(course_root: Path) -> list[str]:
     return issues
 
 
-def s8_manifest_issues(course_root: Path) -> list[str]:
+def s8_manifest_issues(course_root: Path, *, strict_missing: bool) -> list[str]:
     manifests = sorted((course_root / "90_缓存" / "s8-digest").glob("*/digest.json"))
     knowledge_notes = [path for path in (course_root / "20_知识").glob("*.md") if path.name != "README.md"]
-    if knowledge_notes and not manifests:
+    if strict_missing and knowledge_notes and not manifests:
         return ["20_知识 存在章节产物但没有 S8 digest manifest"]
     import s8_digest_gate
 
@@ -455,7 +641,7 @@ def validate(course_root: Path, scope: str) -> tuple[list[str], list[str], dict[
     if not course_root.is_dir():
         raise ValidationConfigError(f"课程目录不存在：{course_root}")
     files = selected_markdown(course_root, scope)
-    if not files:
+    if not files and scope != "s10":
         raise ValidationConfigError(f"scope={scope} 没有找到可校验 Markdown")
     control: list[str] = []
     latex: list[str] = []
@@ -468,6 +654,8 @@ def validate(course_root: Path, scope: str) -> tuple[list[str], list[str], dict[
         bare_math.extend(bare_math_warnings(path, text))
     links = link_issues(course_root, files)
     errors = [*control, *latex, *links, *derived_marker_issues(course_root, files)]
+    if scope in {"s1", "all"}:
+        errors.extend(s1_artifact_issues(course_root))
     profile_path = course_profile.profile_path(course_root)
     if profile_path.exists():
         try:
@@ -479,11 +667,15 @@ def validate(course_root: Path, scope: str) -> tuple[list[str], list[str], dict[
     if scope in {"s7", "all"}:
         errors.extend(s7_item_marker_issues(course_root))
         errors.extend(quote_evidence_issues(course_root))
+    if scope in {"s5", "all"}:
+        errors.extend(s5_marker_issues(course_root))
+    if scope in {"s10", "all"}:
+        errors.extend(s10_learning_event_issues(course_root))
     errors.extend(ocr_consumption_issues(course_root, scope))
     if scope in {"s6", "all"}:
         errors.extend(starter_provenance_issues(course_root))
     if scope in {"s8", "all"}:
-        errors.extend(s8_manifest_issues(course_root))
+        errors.extend(s8_manifest_issues(course_root, strict_missing=scope == "s8"))
     counts = {"control": len(control), "latex": len(latex), "links": len(links)}
     warnings = bare_math
     return errors, warnings, counts

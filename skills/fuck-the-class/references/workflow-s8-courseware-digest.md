@@ -1,58 +1,71 @@
-# S8 Courseware Digest
+# S8 课件消化
 
-Purpose: turn one chapter's courseware decks (PPT/PPTX/PDF) into a chapter mainline note in `20_知识/` for fast exam-oriented understanding: a student should quickly find the tested idea, recognition cue, first move, formula conditions, and common trap, then be able to understand the underlying idea without unexplained jumps.
+目的：把一个章节的课件转成 `20_知识/` 中的章节主干笔记，用于快速应试理解：学生应能快速找到考点、识别信号、第一步、公式条件和常见坑，同时能理解背后的想法，不出现 unexplained jumps。S8 也要为 S10 main agent 提供可追溯 grounding 和主动问答种子，但这些是建立在完整主干笔记之上的附加层，不能替代主干讲解。
 
-Inputs:
+## 输入
 
-- course root
-- chapter scope and its courseware file list
-- optional root-level `课程口径.md`; when absent, use the supplied course materials as the boundary
-- mainline/supplement mapping from the user (e.g. "6-5 supplements 6-4, not a mainline"). This comes from the teacher's emphasis and exam hints; never infer it yourself. If missing, ask.
-- optional: existing `40_派生视图/考频矩阵.md` to mark high-frequency question types
+- 课程根目录
+- 章节范围和对应课件列表
+- 可选根目录 `课程口径.md`；缺失时以给定课件为边界
+- 用户确认的主线/补充映射，如“6-5 补充 6-4，不是主线”。这来自教师重点和考试提示，不能自行推断；缺失时询问。
+- 可选 `40_派生视图/考频矩阵.md` 用于标注高频题型
 
-Required files:
+## 必需文件
 
-- read: source PPT/PPTX/PDF decks, preferably under `00_原材料/`
-- read/write or create: `20_知识/README.md`
-- read/write when present and affected: existing chapter notes and `20_知识/整体知识框架.md`
-- read optional: `10_题库/_标签库.md` and `40_派生视图/考频矩阵.md`
-- write: `20_知识/第XX章_主干重点.md` and conversion cache under `90_缓存/` when needed
+- 读取：源 PPT/PPTX/PDF 课件，最好在 `00_原材料/`
+- 读写或创建：`20_知识/README.md`
+- 若存在且受影响，读写：现有章节笔记和 `20_知识/整体知识框架.md`
+- 可选读取：`10_题库/_标签库.md` 和 `40_派生视图/考频矩阵.md`
+- 写入：`20_知识/第XX章_主干重点.md`，必要时写转换 cache 到 `90_缓存/`
 
-Steps:
+## 步骤
 
-1. Convert decks through cached conversion under `90_缓存/` per `pdf-ingestion.md`; never manipulate the user's open Office windows.
-2. Quality bar: use the level, notation, and vocabulary taught by the current course. Write a self-contained, plain-language guided review, not a slide inventory, miniature textbook, or compact reference outline. The note should feel like a teacher walking a student through the chapter: when introducing a method, state what the student should notice in the problem, why the first move is natural, what each formula symbol corresponds to, which condition makes the method legal, and what common mistake this explanation prevents. Organize the note around what is tested and how the ideas are used, while supplying enough intuition, intermediate reasoning, examples, and formula conditions to remove likely comprehension gaps. `快速理解` means reducing prerequisite burden and reasoning jumps, not forcing short prose. Do not shorten material when doing so would make it harder to understand. Do not depend on a cross-course absolute-path golden sample.
-3. Write one note per chapter with this fixed structure:
-   - 这一章抓什么: review-priority list.
-   - 阅读层次表: 2-4 reading layers (e.g. intuition / model / application).
-   - 先建立整体直觉: explain what problem the chapter solves, how it connects to neighboring chapters, and the physical or geometric picture behind the main formulas. Use as many paragraphs, intermediate examples, or contrasts as needed to make the mainline understandable; there is no target minimum or maximum length.
-   - 本章怎么串起来: the chapter's mainline chain plus how to decompose its typical problems.
-   - 分节主干 following deck order; begin each section with a one-sentence exam-facing conclusion or recognition cue, then explain the concepts, conditions, symbols, reasoning bridges, and representative examples needed to understand and use it. For local procedures inside a subsection, prefer guided walkthrough prose using connective language such as "先...再...最后..." so the reader sees the reason for each move; reserve numbered lists mainly for the final `解题流程` section or for procedures that must be executed as a checklist. Do not omit an intermediate step merely to keep the section short. Include **at least one `> **直觉**：` or `> **注意**：` blockquote per section**. Define unfamiliar source terminology on first use and prefer the ordinary name used in the course. For figures that matter to problems, write "见 <课件名> 第N页" pointers instead of describing figures vaguely.
-   - Keep the fixed structure above unchanged. Improve learnability through writing style inside those sections, not by adding a new mandatory heading system. Within each subsection, ensure the explanation supplies the learning bridges: problem signal, first move, formula meaning, validity condition, and common misuse. These bridges may appear naturally in prose rather than as visible labels.
-   - 解题流程: numbered step recipes per question family. Keep this section concise and executable; it is the scan-friendly counterpart to the guided explanations above.
-   - 易错点.
-   - 复习检查: a checklist where every item points back to a section of this note.
-4. Scope gate — no syllabus expansion:
-   - Resolve the boundary in this order: the current user instruction, confirmed teaching/exam scope in `课程口径.md`, user-confirmed teacher emphasis, then the supplied source materials. If the profile is absent or its range fields are `未设置`, the supplied materials are the boundary.
-   - Use `学习阶段` only to choose familiar terminology, unpack assumed prerequisites, and decide how many reasoning bridges or examples are needed. Never treat the stage label as permission to add content.
-   - Do not replace a course statement with a stronger formulation or introduce outside notation, proof machinery, terminology, or methods merely because they are elegant or commonly taught elsewhere.
-   - Plain-language analogies may clarify an in-scope idea, but may not add a new theorem, notation system, proof method, or examinable conclusion.
-   - The question bank and tag vocabulary may prioritize topics and standardize names, but cannot authorize a theory that is absent from the confirmed scope and source materials.
-   - If the decks themselves contain material identified as supplementary or outside the exam mainline, omit it from required formulas and solution recipes. Include it only when needed to represent the deck faithfully, under `课件拓展（非应试主线）`, without presenting it as required knowledge.
-   - When a statement, term, or formula cannot be traced to the source materials or confirmed scope, omit it and list it under `范围待确认`; never fill the gap from general model knowledge.
-5. Source-citation discipline: the chapter-to-deck mapping table lives ONLY in `20_知识/README.md` — do not repeat the full table inside chapter notes. Section-level sources cite the deck filename only; add page numbers only when they locate the actual pages of that section's content — **never write "第 1-<total> 页" (the whole file's page count) as a fake range**. Every nontrivial formula, criterion, and named method must be traceable to a cited source section. Items in 易错点 / 解题流程 / 复习检查 point back to sections of this note by default; per-item deck citations are reserved for a specific figure or derivation.
-6. Prefer `_标签库.md` terms for question-type names. If the library does not exist yet or has no match, name freely and end the note with an `未对齐题型名` list for S1 `精标回填`.
-7. Formatting discipline: inline LaTeX for single-line formulas; display blocks only for multi-line derivations or centerpiece formulas; blockquotes must fully wrap their content; keep symbols consistent across the whole note. When decks conflict, follow the user-confirmed mainline source. If no source priority resolves the conflict, mark it `范围待确认` instead of silently choosing the newer deck.
-8. Maintain `20_知识/README.md`: chapter-to-deck mapping, mainline/supplement hierarchy, suggested first-read order. After changing a chapter note, inspect the README and update every affected entry; if no edit is needed, report it as checked and unchanged.
-9. Maintain the cross-chapter framework when `20_知识/整体知识框架.md` already exists or the user requests one: refresh every section affected by the changed chapter notes. If it does not exist and was not requested, do not create it implicitly.
-10. Before validation, perform a scope audit and report `范围复核：课件外理论 0，未确认术语 0` or list each unresolved item. Any unresolved scope item blocks completion or stays out of the note.
-11. Run `validate_course_artifacts.py --scope s8`.
-12. Run `s8_digest_gate.py bind` with every source deck/PDF, every applicable PDF completion certificate, and every changed chapter note/README/framework output. On an intentional refresh, use `--replace`. Finish by running `s8_digest_gate.py verify`.
+1. 课件通过 `pdf-ingestion.md` 在 `90_缓存/` 下做缓存转换；不要操控用户打开的 Office/WPS 窗口。
+2. 质量目标：使用本课程讲授层级、记号和词汇。写一份自足、普通话清楚、像老师带学生走过这一章的 guided review，而不是课件目录、迷你教材或 compact reference outline。介绍方法时，要说明题目里先看什么、为什么第一步自然、每个公式符号对应题目中的什么、什么条件让方法合法、这个解释防止哪个常见错误。围绕考什么和怎么用组织内容，同时提供足够直觉、中间推理、例子和公式条件来消除理解断点。`快速理解` 指降低先修负担和推理跳跃，不是强行写短。缩短会让理解变差时，不要缩短。
+3. 新增 S10 grounding、主动问答种子、条件/坑点/反例/题型信号时，只能作为原有 S8 guided review 契约的补充，不能让主干笔记比原契约更短、更紧、更像提纲。不要把本来应展开的定义、直觉、推理桥、代表例子、公式含义、合法条件和常见误用压缩成索引项。
+4. 每章写一个文件，保持这个固定结构：
+   - `这一章抓什么`: 复习优先级列表。
+   - `阅读层次表`: 2-4 个阅读层次，例如直觉层 / 模型层 / 应用层。
+   - `先建立整体直觉`: 解释这一章解决什么问题、和前后章节如何连接、主公式背后的物理/几何/结构图像。使用足够段落、中间例子或对比让主线真的可理解；没有目标最小或最大长度。
+   - `本章怎么串起来`: 本章主线链条，以及做题时如何拆解典型问题。
+   - `分节主干`: 按课件顺序展开。每节先给一句面向考试的结论或识别信号，再解释理解和使用所需的概念、条件、符号、推理桥和代表例子。局部步骤优先用“先...再...最后...”这样的 guided walkthrough，让学生看到每一步的理由；只有最终 `解题流程` 或必须执行的清单才主要用编号列表。不要为了短而省略中间步骤。每节至少包含一个 `> **解释**：`、`> **直觉**：`、`> **怎么用**：`、`> **注意**：` 或 `> **例子**：` 块。首次出现源材料术语时定义，优先使用本课程普通叫法。对做题重要的图，写“见 <课件名> 第N页”。
+   - 在上面固定结构内提升可学性，不要用新的强制标题体系替代它。每个 subsection 内都要自然提供学习桥：题目信号、第一步、公式含义、合法条件和常见误用。这些可以在 prose 或轻量 blockquote 中出现，不必都做成可见标签。
+   - `主动问答种子`: 放在主干讲解之后，列出若干“如果你不知道问什么，先问自己/问我……”的问题。问题应来自本章主干、常见误区、题型第一步或已有学习证据，用于 S10 主动 probe。该节是 S10 入口，不替代前面的解释。
+   - `条件 / 坑点 / 反例 / 题型信号`: 主干讲解后的沉淀索引。条件写什么时候成立/不能用；坑点写最容易错在哪里；反例写什么情况能戳破错误理解；题型信号写题目长什么样时启动方法；第一步写看到信号后先做什么。该节不得替代 `分节主干`。
+   - `解题流程`: 按题族给编号步骤。保持简洁可执行；这是 guided explanation 的 scan-friendly counterpart。
+   - `易错点`。
+   - `复习检查`: 每项都回指本 note 的某个 section。
+5. 范围 gate：
+   - 范围优先级：当前用户指令、`课程口径.md` 确认范围、用户确认教师重点、源课件。
+   - `学习阶段` 只决定术语熟悉度、先修展开和推理桥数量，不授权新增内容。
+   - 不用更强 formulation 替换课件表述，不引入材料外记号、证明工具、术语或方法。
+   - 普通类比可以解释范围内内容，但不能添加新定理、记号系统、证明方法或可考结论。
+   - 题库和标签库只能帮助命名与优先级，不能授权材料外理论。
+   - 补充或非主线内容放在 `课件拓展（非应试主线）`，不要写成必会。
+   - 无法追溯到源材料或确认范围的内容，移入 `范围待确认` 或省略。
+6. 来源纪律：
+   - 章节到课件映射表只放在 `20_知识/README.md`，不要在章节 note 中重复整表。
+   - 章节内引用到课件文件名；页码只在能定位实际内容时写，禁止用“第 1-总页数 页”伪范围。
+   - 每个非平凡公式、判据、命名方法都能追溯到来源段落。
+   - 易错点、流程、检查项默认回指本 note；只有具体图或推导才逐项引用课件。
+7. 优先使用 `_标签库.md` 的题型名。无匹配时自由命名，并在 note 末尾列 `未对齐题型名`，供 S1 精标回填。
+8. 格式纪律：
+   - 单行公式用 inline LaTeX；多行推导、核心公式或需要标注结构时用 display block。
+   - 可使用 `aligned`、`\underbrace`、`\overbrace`、`\text{...}`、`\boxed{...}`、`\color{...}` 帮助解释结构；颜色不能成为唯一信息载体。
+   - 首次出现概念、术语、公式或方法时，用 `> **解释**：`、`> **直觉**：`、`> **怎么用**：`、`> **注意**：` 或 `> **例子**：` 之类短块降低理解摩擦。
+   - 段落适合电子阅读。一个段落承担多个功能时拆开；长段必须拆。
+9. 维护 `20_知识/README.md`：章节到课件映射、主线/补充层级、建议先读顺序。改章节 note 后检查 README 并更新；无需更新时报告已检查且未变。
+10. 维护 cross-chapter framework：若 `20_知识/整体知识框架.md` 已存在或用户要求，刷新受影响部分。不存在且用户未要求时不隐式创建。
+11. 校验前做范围审计，并报告 `范围复核：课件外理论 0，未确认术语 0`，或列出未解决项。未解决范围项阻塞完成，或必须留出 note。
+12. 运行 `python <skill>/scripts/validate_course_artifacts.py --course-root <course-root> --scope s8`。
+13. 用每个源课件/PDF、每个适用 PDF completion certificate、每个改动后的章节 note/README/framework 运行 `s8_digest_gate.py bind`。 intentional refresh 时使用 `--replace`。最后运行 `s8_digest_gate.py verify`。
 
-Output:
+## 输出
 
 - `20_知识/第XX章_主干重点.md`
-- synchronized or checked-unchanged `20_知识/README.md`
-- optional `20_知识/整体知识框架.md`
+- 已同步或确认未变的 `20_知识/README.md`
+- 可选 `20_知识/整体知识框架.md`
 
-Boundary: do not invent exercises or import outside-syllabus theory. Question ingestion belongs to S1, and full worked solutions belong to S9. Do not paste long verbatim runs of the deck. Do not claim S8 complete while scope or a source conflict is unresolved, while an existing README or framework still contains content made stale by the changed chapter notes, or while its digest manifest is absent or stale.
+## 边界
+
+不发明练习题，不导入课外理论。题目入库归 S1，完整解答归 S9。不要粘贴课件长篇逐字内容。scope 或来源冲突未解决、README/框架仍过期、digest manifest 缺失或 stale 时，不报告 S8 完成。S8 输出服务 S10 主线程问答，但不把主干笔记压缩成仅供 S10 检索的索引。

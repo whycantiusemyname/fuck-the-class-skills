@@ -34,7 +34,14 @@ def normalize_learning_stage(value: str | None) -> str:
 
 
 def render_list(values: list[str] | None) -> str:
-    cleaned = [value.strip() for value in values or [] if value.strip()]
+    cleaned: list[str] = []
+    for value in values or []:
+        item = value.strip()
+        if not item:
+            continue
+        if "\n" in item or "\r" in item:
+            raise CourseProfileError("课程口径列表项必须是单行文本")
+        cleaned.append(item)
     return "\n".join(f"- {value}" for value in cleaned) if cleaned else "未设置"
 
 
@@ -99,6 +106,19 @@ def scope_fields(profile: dict[str, str] | None) -> dict[str, str]:
     return {name: profile[name] for name in REQUIRED_SECTIONS[1:]}
 
 
+def parse_rendered_list(value: str) -> list[str]:
+    if value.strip() == "未设置":
+        return []
+    items: list[str] = []
+    for line in value.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- "):
+            items.append(stripped[2:].strip())
+        elif stripped:
+            items.append(stripped)
+    return items
+
+
 def initialize(
     course_root: Path,
     learning_stage: str | None,
@@ -124,6 +144,23 @@ def initialize(
     return path
 
 
+def update(
+    course_root: Path,
+    learning_stage: str | None = None,
+    confirmed_scope: list[str] | None = None,
+    teacher_emphasis: list[str] | None = None,
+    exclusions: list[str] | None = None,
+) -> Path:
+    current = load_profile(course_root)
+    if current is None:
+        raise CourseProfileError("课程口径不存在；请先运行 init")
+    stage = learning_stage if learning_stage is not None else current["学习阶段"]
+    scope = confirmed_scope if confirmed_scope is not None else parse_rendered_list(current["已确认教学/考试范围"])
+    emphasis = teacher_emphasis if teacher_emphasis is not None else parse_rendered_list(current["教师重点与主线/补充关系"])
+    excluded = exclusions if exclusions is not None else parse_rendered_list(current["明确排除内容"])
+    return initialize(course_root, stage, scope, emphasis, excluded, replace=True)
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -136,6 +173,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     init_parser.add_argument("--replace", action="store_true")
     verify_parser = commands.add_parser("verify")
     verify_parser.add_argument("--course-root", required=True, type=Path)
+    update_parser = commands.add_parser("update")
+    update_parser.add_argument("--course-root", required=True, type=Path)
+    update_parser.add_argument("--learning-stage")
+    update_parser.add_argument("--confirmed-scope", action="append")
+    update_parser.add_argument("--teacher-emphasis", action="append")
+    update_parser.add_argument("--exclude", action="append")
     return parser.parse_args(argv)
 
 
@@ -150,6 +193,15 @@ def main(argv: list[str] | None = None) -> int:
                 args.teacher_emphasis,
                 args.exclude,
                 args.replace,
+            )
+            print(path)
+        elif args.command == "update":
+            path = update(
+                args.course_root,
+                args.learning_stage,
+                args.confirmed_scope,
+                args.teacher_emphasis,
+                args.exclude,
             )
             print(path)
         else:

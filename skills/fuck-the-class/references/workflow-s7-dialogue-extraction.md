@@ -1,62 +1,64 @@
-# S7 Learning-Dialogue Extraction
+# S7 学习对话提取
 
-Purpose: preserve concept-stage evidence from exported AI learning conversations by appending structured blockers to `卡点清单.md`.
+目的：从导出的 AI 学习对话中保存概念阶段证据，把结构化卡点追加到 `卡点清单.md`。
 
-Inputs:
+## 输入
 
-- exported dialogue file, usually Markdown or text
-- course root
-- chapter number or topic, ideally from a one-chapter-one-topic chat title
+- 导出的对话文件，通常是 Markdown 或 text
+- 课程根目录
+- 章节号或主题，最好来自“一章一主题”的聊天标题
 
-Required files:
+## 必需文件
 
-- read: exported dialogue `.md` or `.txt`
-- read/write: `30_我的数据/卡点清单.md`
-- read: `20_知识/`
-- read: `10_题库/_标签库.md`
+- 读取：导出的 `.md` 或 `.txt`
+- 读写：`30_我的数据/卡点清单.md`
+- 读取：`20_知识/`
+- 读取：`10_题库/_标签库.md`
 
-Steps:
+## 步骤
 
-1. Archive the dialogue before extraction.
-   - If the exported dialogue is outside the vault or course tree, copy it byte-for-byte into `<course-root>/90_缓存/s7-dialogue/`.
-   - If a same-name cached file exists with different bytes, append the source SHA-256 first 8 hex characters before the extension.
-   - Use the cached vault-root-relative path for every `evidence_source` and `quote_source`.
-2. Read the cached dialogue as evidence, not as source material to summarize.
-3. Extract only four current item types:
-   - `用户提问`: direct user questions worth remembering as concept blockers
-   - `明确疑问`: user confusion, being stuck, asking for a different explanation, asking to connect pages, asking for examples, pointing out inconsistency, or asking for another angle
-   - `被纠正的误解`: corrected misunderstandings in the form `原以为X -> 实际是Y`
-   - `最终讲通解释`: the final explanation for a recorded prior question or clear doubt
-4. Do not write new `追问≥2轮` items. Treat existing `追问≥2轮` records in old blocker lists as historical compatible data only.
-5. Apply admission rules before writing:
-   - A single clear doubt is enough; do not require two follow-up rounds.
-   - Plain progress markers such as "continue", "next page", "start this section", or image-only turns do not qualify unless paired with a clear doubt.
-   - A `最终讲通解释` must have a corresponding earlier `用户提问` or `明确疑问`; do not quote ordinary explanations that were not triggered by a visible blocker.
-   - Compare against `20_知识/`; skip ordinary knowledge summaries and explanations that merely duplicate existing notes. Do not reject a real user blocker just because the same concept also appears in `20_知识/`.
-6. For each accepted item, attach:
-   - chapter label
-   - `_标签库.md` question-type tag when it matches; otherwise `题型: 未映射`
-   - `概念键` as a stable short concept path, especially when `题型` is `未映射`
-   - `evidence_source`, `evidence_source_sha256`, and exact 1-based `evidence_lines`
-7. Before each new item, write an idempotency marker:
+1. 提取前先归档对话。
+   - 导出对话在 vault 或课程树外时，逐字节复制到 `<course-root>/90_缓存/s7-dialogue/`。
+   - 若同名缓存文件已存在但字节不同，在扩展名前追加源 SHA-256 前 8 位。
+   - 所有 `evidence_source` 和 `quote_source` 使用缓存后的 vault-root-relative 路径。
+2. 把缓存对话当证据读，不当知识材料总结。
+3. 只提取四类当前 item：
+   - `用户提问`: 值得记忆为概念卡点的直接问题。
+   - `明确疑问`: 困惑、卡住、要求换解释、连接页、举例、指出不一致、换角度。
+   - `被纠正的误解`: `原以为X -> 实际是Y` 形式的纠正。
+   - `最终讲通解释`: 对已有问题或明确疑问的最终解释。
+4. 不写新的 `追问≥2轮`。旧卡点清单中的 `追问≥2轮` 只作历史兼容。
+5. 写入前执行准入规则：
+   - 一个清晰疑问足够，不要求两轮追问。
+   - “继续”“下一页”“开始这节”或只有图片的进度回合不合格，除非伴随明确疑问。
+   - `最终讲通解释` 必须对应前面的 `用户提问` 或 `明确疑问`；不引用没有可见 blocker 的普通讲解。
+   - 对照 `20_知识/`，跳过普通知识总结和仅重复笔记的解释。但不要因为同概念已在笔记中就拒绝真实用户卡点。
+6. 每个接受条目附：
+   - 章节标签；
+   - 匹配 `_标签库.md` 时写题型标签，否则 `题型: 未映射`；
+   - `概念键`，尤其在题型未映射时；
+   - `evidence_source`、`evidence_source_sha256`、准确 1-based `evidence_lines`。
+7. 每个新条目前写 idempotency marker：
 
 ```markdown
 <!-- s7-item:<source_sha256>:<类型>:<evidence_lines> -->
 ```
 
-   If the same marker already exists in `卡点清单.md`, skip that item and count it as a duplicate skip in the report.
-8. For final explanations, paste the original excerpt as a quote block exactly as exported. Record `quote_source`, the source file SHA-256, exact 1-based `quote_lines`, and the quote SHA-256 using the schema format.
-   - Quote the smallest continuous original excerpt that captures the explanation.
-   - Preferred quote length is 5-25 lines.
-   - If `quote_lines` spans more than 25 lines, add `quote_scope_reason:` immediately before `原文摘录` explaining why the long continuous excerpt is necessary.
-   - Do not stitch together non-contiguous excerpts.
-9. Append accepted items under the matching chapter in `30_我的数据/卡点清单.md`.
-10. Run `validate_course_artifacts.py --scope s7`; any source-hash, line-range, quote-hash, verbatim-text mismatch, duplicate new marker, malformed new marker, missing new evidence field, or missing long-quote reason blocks completion.
-11. Report extraction counts by item type and list items skipped because they duplicated `20_知识/`, lacked enough evidence, were progress-only turns, or already existed by marker.
+   若 `卡点清单.md` 已有同 marker，跳过并在报告中计为重复。
+8. 对最终讲通解释，按导出原文逐字粘贴 quote block。记录 `quote_source`、源文件 SHA-256、准确 1-based `quote_lines` 和 quote SHA-256。
+   - 引用能承载解释的最小连续原文。
+   - 推荐 5-25 行。
+   - `quote_lines` 超过 25 行时，在 `原文摘录` 前加 `quote_scope_reason:` 说明为什么必须长引用。
+   - 不拼接非连续片段。
+9. 把接受条目追加到 `30_我的数据/卡点清单.md` 对应章节下。
+10. 运行 `python <skill>/scripts/validate_course_artifacts.py --course-root <course-root> --scope s7`。任何 source-hash、行范围、quote-hash、逐字文本、重复新 marker、marker 格式、新证据字段或长引用原因错误都阻塞完成。
+11. 按 item 类型报告提取数量，并列出因重复 `20_知识/`、证据不足、进度回合或 marker 已存在而跳过的项。
 
-Output:
+## 输出
 
-- appended `卡点清单.md` entries
-- extraction summary with counts for the four current item types and skip counts
+- 追加的 `卡点清单.md` 条目
+- 四类当前 item 的提取计数和跳过计数
 
-Boundary: do not summarize knowledge, evaluate the user's ability, or give study advice. Do not rewrite original excerpts; preserve them verbatim.
+## 边界
+
+不要总结知识、评价用户能力或给学习建议。不要改写原文摘录，必须逐字保留。S7 产出的卡点供 S10 主线程后续主动 probe 使用。
