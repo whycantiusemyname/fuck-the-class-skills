@@ -68,6 +68,7 @@ def bind(
         raise DigestError(f"digest manifest 已存在；刷新时显式使用 --replace：{target}")
     if not sources or not outputs:
         raise DigestError("S8 manifest 至少需要一个源文件和一个输出文件")
+    warnings: list[str] = []
     completion_records = []
     for completion in completions:
         payload = json.loads(completion.read_text(encoding="utf-8-sig"))
@@ -86,14 +87,24 @@ def bind(
         except ValueError as exc:
             raise DigestError(f"S8 输出必须位于 20_知识：{output}") from exc
         output_records.append(record(output, course_root))
+    raw_root = (course_root / "00_原材料").resolve()
+    source_records = []
+    for source in sources:
+        source_record = record(source, course_root)
+        source_records.append(source_record)
+        try:
+            source.resolve().relative_to(raw_root)
+        except ValueError:
+            warnings.append(f"S8 源文件不在 00_原材料：{source_record['path']}")
     payload = {
         "schema_version": 1,
         "status": "complete",
         "chapter": chapter,
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "sources": [record(path, course_root) for path in sources],
+        "sources": source_records,
         "completions": completion_records,
         "outputs": output_records,
+        "warnings": warnings,
     }
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary = target.with_suffix(".json.tmp")

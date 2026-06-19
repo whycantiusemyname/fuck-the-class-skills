@@ -32,7 +32,8 @@
 10. `精标回填` 模式：不改题面、anchor 和解答块；只替换占位/未判定知识标签、按请求补缺失 `question_form`、在有事实证据时修复试卷元数据、补全 `_标签库.md` 的 capability-theme 映射。不要批量升级旧 OCR 状态。
 11. 运行 `python <skill>/scripts/validate_course_artifacts.py --course-root <course-root> --scope s1`。
 12. PDF 入库时，用准确源 PDF、completion.json、每个输出试卷和 `$pdf-to-markdown` skill 路径运行 `s1_intake_gate.py bind`，再运行 `s1_intake_gate.py verify`。二者未通过前 S1 不完成。
-13. 报告题型形式完整度、OCR 状态计数、capability-theme 映射完整度和 intake manifest 路径。提醒用户源数据变化后需要重新生成 S2。
+13. `s1_intake_gate.py` 默认从 `CODEX_HOME` 查找 `$pdf-to-markdown`；未设置时使用用户 home 下的 `.codex/skills/pdf-to-markdown`。路径不同就显式传 `--pdf-skill`。
+14. 报告题型形式完整度、OCR 状态计数、capability-theme 映射完整度和 intake manifest 路径。提醒用户源数据变化后需要重新生成 S2。
 
 ## 输出
 

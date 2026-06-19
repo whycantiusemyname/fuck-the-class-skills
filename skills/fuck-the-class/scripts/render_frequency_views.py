@@ -95,7 +95,8 @@ def escape_table(value: str) -> str:
 
 
 def wiki(target: str, label: str, *, table: bool = False) -> str:
-    return f"[[{target}|{label}]]"
+    display_label = label.replace("\n", " ") if table else label
+    return f"[[{target}|{display_label}]]"
 
 
 def question_link(course_name: str, representative: dict[str, Any], *, table: bool = False) -> str:

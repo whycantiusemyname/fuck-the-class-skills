@@ -380,7 +380,15 @@ def quote_evidence_issues(course_root: Path) -> list[str]:
         if line.strip() != "原文摘录:":
             continue
         metadata: dict[str, str] = {}
-        for prior in lines[max(0, index - 8) : index]:
+        block_start = 0
+        for cursor in range(index - 1, -1, -1):
+            if lines[cursor].startswith("<!-- s7-item:") or lines[cursor].startswith("- 来源: S7学习对话提取"):
+                block_start = cursor
+                break
+            if lines[cursor].strip() == "原文摘录:":
+                block_start = cursor + 1
+                break
+        for prior in lines[block_start:index]:
             match = re.match(r"^\s*(quote_source|quote_source_sha256|quote_lines|quote_sha256):\s*(.+?)\s*$", prior)
             if match:
                 metadata[match.group(1)] = match.group(2)
