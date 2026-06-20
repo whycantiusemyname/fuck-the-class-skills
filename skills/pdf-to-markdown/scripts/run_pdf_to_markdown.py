@@ -20,12 +20,10 @@ from mineru_common import (
 from mineru_fetch_results import fetch_results
 from mineru_poll_batch import poll_manifest
 from mineru_submit_batch import submit_manifest
-from normalize_obsidian_output import normalize_chunk
-from pdf_workflow import (
-    create_workflow_state,
-    make_run_id,
-    reset_postprocessing_artifacts,
-    sha256_file,
+from normalize_obsidian_output import (
+    normalize_chunk,
+    repair_bracket_math_blocks,
+    repair_latex_math_delimiters,
 )
 from prepare_llm_readthrough_segments import prepare_segments
 from prepare_pdf_chunks import prepare_chunks, split_range
@@ -203,12 +201,13 @@ def export_single_chunk_passthrough(
     extract_dir = Path(record["result_dir"])
     full_md = find_full_markdown(extract_dir)
     output_md.parent.mkdir(parents=True, exist_ok=True)
-
-    if full_md.resolve() != output_md.resolve():
-        shutil.copy2(full_md, output_md)
-
+    text = full_md.read_text(encoding="utf-8")
+    text = repair_bracket_math_blocks(text)
+    text = repair_latex_math_delimiters(text)
     def resolve_passthrough_image(relative_path: str) -> Path:
         return output_md.parent / relative_path
+
+    output_md.write_text(text, encoding="utf-8")
 
     images_dir = full_md.parent / "images"
     copied_images = False
@@ -216,10 +215,8 @@ def export_single_chunk_passthrough(
         shutil.copytree(images_dir, output_md.parent / "images", dirs_exist_ok=True)
         copied_images = True
 
-    if image_width is not None:
-        text = output_md.read_text(encoding="utf-8")
-        text = apply_obsidian_image_width(text, image_width, image_resolver=resolve_passthrough_image)
-        output_md.write_text(text, encoding="utf-8")
+    text = apply_obsidian_image_width(text, image_width, image_resolver=resolve_passthrough_image)
+    output_md.write_text(text, encoding="utf-8")
 
     record["exported_markdown"] = str(output_md)
     append_history(record, f"Exported MinerU full.md directly to {output_md}.")
@@ -230,7 +227,6 @@ def export_single_chunk_passthrough(
         "images_copied": copied_images,
         "images_destination": str(output_md.parent / "images") if copied_images else None,
         "image_width": image_width,
-        "content_transform": "image-width-only" if image_width is not None else "none",
     }
     write_json(reports_dir / "passthrough_report.json", report_payload)
     write_json(manifest_path, manifest)
@@ -246,6 +242,11 @@ def write_failure_report(manifest: dict, report_path: Path) -> None:
     ]
     total = len(manifest["chunks"]) or 1
     failure_ratio = len(failures) / total
+    recommendation = (
+        "Use pdf-to-obsidian-notes-vision-crop-with-subagent for local visual fallback."
+        if failure_ratio <= 0.2
+        else "Use pdf-to-obsidian-notes-with-subagent for whole-document fallback."
+    )
     payload = {
         "source_pdf": manifest["source_pdf"],
         "failed_ranges": [
@@ -268,19 +269,13 @@ def write_failure_report(manifest: dict, report_path: Path) -> None:
             for record in successful
         ],
         "failure_ratio": failure_ratio,
-        "recommended_action": "Stop this workflow and report the unresolved ranges to the user.",
-        "fallback_started": False,
+        "recommended_fallback": recommendation,
+        "needs_user_approval": True,
     }
     write_json(report_path, payload)
 
 
-def write_llm_readthrough_prompt(
-    manifest: dict,
-    draft_md: Path,
-    requested_output: Path,
-    reports_dir: Path,
-    segment_manifest_path: Path,
-) -> None:
+def write_llm_readthrough_prompt(manifest: dict, output_md: Path, reports_dir: Path, segment_manifest_path: Path) -> None:
     successful_ranges = [
         f"{record['start_page']}-{record['end_page']}"
         for record in manifest["chunks"]
@@ -309,9 +304,8 @@ Rules:
 - Keep wording changes minimal; repair formatting and math before prose.
 - Do not invent missing content.
 
-Files:
-- MinerU draft: {draft_md}
-- Requested final Markdown: {requested_output}
+Primary file:
+- Markdown: {output_md}
 
 Segment package:
 - Segment manifest: {segment_manifest_path}
@@ -326,8 +320,7 @@ Context:
 
 Return:
 - Repair each segment and save the result to the matching path under the repaired directory.
-- After all segments are repaired, run validate_text_repairs.py.
-- Do not write the requested final Markdown directly. It is created only after visual source verification.
+- After all segments are repaired, merge them back into one Markdown file.
 """
     prompt_path = reports_dir / "llm_readthrough_prompt.txt"
     prompt_path.write_text(prompt_text, encoding="utf-8")
@@ -335,18 +328,12 @@ Return:
 
 def run_pipeline(input_pdf: Path, output_md: Path, work_dir: Path, image_width: int | None = None) -> int:
     note_stem = output_md.stem
-    draft_md = work_dir / "draft.md"
-    if output_md.resolve() == draft_md.resolve():
-        raise ValueError("The requested final Markdown cannot be the reserved work_dir/draft.md path.")
-    source_pdf_sha256 = sha256_file(input_pdf)
-    run_id = make_run_id(input_pdf, source_pdf_sha256)
-    reset_postprocessing_artifacts(work_dir)
     manifest_path = work_dir / "manifest.json"
     chunks_dir = ensure_dir(work_dir / "chunks")
     results_dir = ensure_dir(work_dir / "results")
     normalized_dir = ensure_dir(work_dir / "normalized")
     reports_dir = ensure_dir(work_dir / "reports")
-    assets_root = work_dir / "assets"
+    assets_root = output_md.parent / "assets"
 
     prepare_chunks(
         input_pdf,
@@ -379,7 +366,7 @@ def run_pipeline(input_pdf: Path, output_md: Path, work_dir: Path, image_width: 
     manifest = read_json(manifest_path)
     successful = [record for record in manifest["chunks"] if record.get("status") == "done" and record.get("result_dir")]
     if len(manifest["chunks"]) == 1 and len(successful) == 1:
-        export_single_chunk_passthrough(manifest_path, draft_md, reports_dir, image_width=image_width)
+        export_single_chunk_passthrough(manifest_path, output_md, reports_dir, image_width=image_width)
     else:
         normalize_successes(
             manifest_path,
@@ -390,58 +377,18 @@ def run_pipeline(input_pdf: Path, output_md: Path, work_dir: Path, image_width: 
         )
         merge_chunks(
             manifest_path,
-            draft_md,
+            output_md,
             reports_dir / "merge_report.json",
         )
     manifest = read_json(manifest_path)
-    segment_manifest = prepare_segments(
-        draft_md,
-        reports_dir / "llm_readthrough_segments",
-        run_id=run_id,
-    )
+    prepare_segments(output_md, reports_dir / "llm_readthrough_segments")
     segment_manifest_path = reports_dir / "llm_readthrough_segments" / "manifest.json"
-    write_llm_readthrough_prompt(
-        manifest,
-        draft_md,
-        output_md,
-        reports_dir,
-        segment_manifest_path,
-    )
+    write_llm_readthrough_prompt(manifest, output_md, reports_dir, segment_manifest_path)
     failures = [record for record in manifest["chunks"] if record["status"] == "final-failed"]
     if failures:
         write_failure_report(manifest, reports_dir / "fallback_report.json")
-        create_workflow_state(
-            work_dir,
-            run_id=run_id,
-            source_pdf=input_pdf,
-            requested_output=output_md,
-            draft_md=draft_md,
-            segment_manifest=segment_manifest_path,
-            page_count=sum(int(record["page_count"]) for record in manifest["chunks"]),
-            status="blocked",
-            source_pdf_sha256=source_pdf_sha256,
-            blockers=[
-                f"MinerU final failure for pages {record['start_page']}-{record['end_page']}: "
-                f"{record.get('error_message') or record.get('error_code') or 'unknown error'}"
-                for record in failures
-            ],
-        )
         return 2
-    create_workflow_state(
-        work_dir,
-        run_id=run_id,
-        source_pdf=input_pdf,
-        requested_output=output_md,
-        draft_md=draft_md,
-        segment_manifest=segment_manifest_path,
-        page_count=len(PdfReader(str(input_pdf)).pages),
-        source_pdf_sha256=source_pdf_sha256,
-    )
-    print(
-        f"MinerU draft and {segment_manifest['segment_count']} repair segments are ready. "
-        "The workflow is incomplete until text repair, visual verification, and finalization pass."
-    )
-    return 3
+    return 0
 
 
 def main() -> int:

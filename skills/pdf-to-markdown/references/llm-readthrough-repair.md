@@ -1,8 +1,8 @@
 # LLM Readthrough Repair Template
 
-Use this template after `pdf-to-markdown` has produced:
+Use this template after `pdf-to-markdown` has already produced:
 
-- `work_dir/draft.md`
+- the final Markdown note
 - one generated prompt file at `reports/llm_readthrough_prompt.txt`
 - one segmented readthrough package at `reports/llm_readthrough_segments/`
 
@@ -79,5 +79,7 @@ Return the repaired segment Markdown only.
 2. Open `reports/llm_readthrough_segments/manifest.json`.
 3. For each segment in order, pass the source segment plus its matching prompt to the LLM.
 4. Save each repaired result into the matching `repaired/segment-XXX.md`.
-5. Run `scripts/validate_text_repairs.py --work-dir <work-dir>`.
-6. Continue with `visual-source-verification.md`; do not merge repaired segments into the requested final path.
+5. Run `scripts/merge_llm_readthrough_segments.py` to merge repaired segments back into the requested final Markdown file.
+6. Run `scripts/write_completion.py --source-pdf <input.pdf> --final-markdown <output.md> --work-dir <work-dir>`.
+7. Run `scripts/verify_completion.py --work-dir <work-dir>`.
+8. Review the repaired Markdown again in Obsidian if the user wants a human-facing quality check.

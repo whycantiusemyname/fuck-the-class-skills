@@ -1,4 +1,4 @@
 interface:
   display_name: "Pdf To Markdown"
-  short_description: "MinerU PDF conversion with text, visual, and hash completion gates"
-  default_prompt: "Use $pdf-to-markdown to convert this local PDF into one certified Obsidian Markdown note. Complete MinerU preparation, every segmented LLM repair, page-by-page visual verification against the source PDF, deterministic finalization, and completion verification. Do not treat draft.md, repaired segments, or a natural-language success claim as final, and do not call fallback or vision-crop skills during this workflow."
+  short_description: "MinerU-first PDF to Obsidian workflow with segmented LLM cleanup and completion certificate"
+  default_prompt: "Use $pdf-to-markdown to convert this local PDF into one Obsidian Markdown note: preflight and split for MinerU, parse and fetch results, lightly normalize/merge, process every LLM readthrough segment, merge repaired segments into the requested final Markdown, then write completion.json and run verify_completion.py before reporting completion."

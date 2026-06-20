@@ -1,120 +1,126 @@
 ---
 name: fuck-the-class
-description: "面向大学课程的应试冲刺与 AI 私教记忆层：把课程文件夹、PDF、扫描件、作业、截图、做题记录、学习对话、题库、标签、错题、参考答案整理成可追溯的题库、核验解答、考频趋势、练习候选、批改记录、卡点证据、复盘、冲刺包和 S10 主线程私教 runtime，不扩展出已确认课程范围。用户提到 Fuck The Class、应试冲刺、快速理解课程、新学科初始化、课程文件夹整理、试卷入库、题型分类、考频分析、趋势预警、近期热点、题型变化、考法迁移、批改截图、学习对话提取、卡点清单、课件梳理、章节梳理、配解答、核验解答、出题队列、错因复盘、冲刺包、AI 私教、tutor session 或 source-bound tutoring 时使用。"
+description: "面向大学课程文件夹的 source-bound 应试学习与 AI 私教记忆层。用于 Fuck The Class 课程仓库中的 S0-S10 工作流：课程初始化、试卷/PDF/PPT 入库、题库打标、考频趋势、离线作答证据、学习事件、卡点清单、课件 grounding、核验解答、练习候选、错因复盘、冲刺包和主线程 tutor session。只在用户要求操作课程文件夹、题库、材料、错题、考频或 source-bound tutoring 时使用；不得扩展已确认课程范围。"
 ---
 
 # Fuck The Class
 
-## 总览
+## 核心定位
 
-使用本技能时，把它当成一个 **source-bound AI tutoring memory layer**：它保存课程材料、考试边界、题库坐标、考频证据、学生作答、学习事件和可重建状态；具体教学判断由主线程强模型在运行时完成。
+使用本技能时，把它当成一个 **薄的 source-bound tutoring memory layer**，不是传统 ITS，也不是只生成复习文档的资料整理器。
 
-本技能服务本科和研究生课程。它假设每门课有一个受控本地文件夹：原材料、题库、知识 grounding、个人数据、派生视图和缓存分开保存，保证后续任务有单一事实来源。
+本技能只做四件事：
 
-S0 初始化后，默认进入 S10 主线程私教 runtime。S10 不是传统 ITS 决策树，而是主线程对话外壳：main agent 保留完整学生对话上下文，按证据即时选择讲解、追问、提示、变式、练习、直接执行文件动作或委托后台动作。
+1. 保存课程事实：原材料、题库、标签、解答、课件 grounding、课程口径。
+2. 保存学习证据：做题记录、学习事件、卡点清单、状态快照。
+3. 运行确定性 gate：考频脚本、PDF completion、manifest、validator。
+4. 让主线程强模型在 S10 中基于证据即时教学、追问、提示、变式和复盘。
 
-## 每次任务开始
+不要把错因 taxonomy、固定 tutor policy、固定变式 ladder 或复杂 domain model 写成系统大脑。教学判断由当前强模型根据材料、学生当下作答和事件历史在运行时完成。
 
-1. 确认课程根目录。若用户未给出，只有当前 workspace 能唯一指向一门课时才自动推断；否则询问课程文件夹和目标动作。
-2. 识别动作：
-   - S0 课程初始化/检查：创建或审计课程骨架和种子文件；完成后进入 S10 姿态。
-   - S1 试卷入库：把试卷、作业、PDF、扫描件、照片或已有文本写入 `10_题库/`。
-   - S2 考频分析：从题库确定性重建重要性、时间趋势、题型变化和主题题表。
-   - S3 作答证据入库：处理 `30_我的数据/inbox/` 的离线手写截图，维护证据坐标、判定简表和归档状态。
-   - S4 练习候选：生成当前 session 可用的候选上下文和 main agent 推荐。
-   - S5 错因复盘：汇总粗错因，并形成开放诊断假设与下一步验证。
-   - S6 冲刺包：生成考前保底清单、起手训练和提醒卡。
-   - S7 学习对话提取：从导出的 AI 学习对话中抽取概念阶段卡点证据。
-   - S8 课件消化：把章节课件转成 AI tutor grounding、学生启动入口、主干讲解和主动问答种子。
-   - S9 核验解答：在题库题目下加入已核验折叠解答块。
-   - S10 私教会话：运行主线程 tutoring runtime，利用证据层自然互动、主动追问、沉淀学习事件和状态快照。
-   - setup/check：S0 的别名。
-3. 写入或校验任何课程产物前，先读 [references/schema-and-rules.md](./references/schema-and-rules.md)。
-4. 若存在 `<course-root>/课程口径.md`，必须读取。范围和讲解口径按以下优先级执行：当前用户指令、已确认教学/考试范围、用户确认的教师重点、课程材料。`学习阶段` 只调整解释方式和默认先修，不扩展课程边界。若缺失，兼容旧课程并以已提供材料为边界。
-5. 只读取选中动作对应的 workflow；用户明确要求组合操作时才读取多个：
-   - S0: [workflow-s0-course-setup.md](./references/workflow-s0-course-setup.md)
-   - S1: [workflow-s1-paper-intake.md](./references/workflow-s1-paper-intake.md)
-   - S2: [workflow-s2-frequency-analysis.md](./references/workflow-s2-frequency-analysis.md)
-   - S3: [workflow-s3-grading-intake.md](./references/workflow-s3-grading-intake.md)
-   - S4: [workflow-s4-practice-queue.md](./references/workflow-s4-practice-queue.md)
-   - S5: [workflow-s5-mistake-review.md](./references/workflow-s5-mistake-review.md)
-   - S6: [workflow-s6-cram-pack.md](./references/workflow-s6-cram-pack.md)
-   - S7: [workflow-s7-dialogue-extraction.md](./references/workflow-s7-dialogue-extraction.md)
-   - S8: [workflow-s8-courseware-digest.md](./references/workflow-s8-courseware-digest.md)
-   - S9: [workflow-s9-verified-solutions.md](./references/workflow-s9-verified-solutions.md)
-   - S10: [workflow-s10-tutor-session.md](./references/workflow-s10-tutor-session.md)
-6. 涉及 PDF、PPT/PPTX、扫描件或 PDF 转换 Markdown 时，读取 [references/pdf-ingestion.md](./references/pdf-ingestion.md)。
+## 任务入口
 
-## Main Agent 与 Subagent 使用原则
+每次任务开始，先做三步：
 
-- main agent 是 S10 runtime。它保留学生的自然对话、语气、犹豫、刚才的作答和即时上下文；这些完整上下文优先于结构化摘要。
-- 结构化证据层用于恢复、审计、委托和跨轮次延续，不替代 main agent 对当前学生的理解。
-- main agent 每次遇到非平凡动作前，都先做动态委托判断：这一步是在继续当前教学，还是在维护证据层文件？
-- 先估算写动文件数：写入、修改、移动、复制、生成 cache 或生成 manifest 都计入；只读取文件和创建目录不计入；同一文件同一动作内多次更新只算 1 个。
-- 硬门槛：预计写动文件数超过 3 个时，必须使用 subagent 执行文件动作。若当前学生正在等 S10 教学回应，main agent 先完成当前解释、probe 或 repair action，再把后台文件动作委托出去。
-- 隐性重活：即使写动文件数不超过 3 个，涉及 PDF/OCR/PPT 转换、全题库扫描、长对话抽取、大课件消化、批量截图或整卷处理时，也优先使用 subagent。
-- 不按动作编号机械分工：S1-S9 不等于必须 subagent，S10 也不等于禁止 subagent。main agent 可以直接执行小范围 S1-S9，也可以把重文件动作委托出去。
-- 留在 main agent：学生正在等解释、诊断、probe、提示或修正；任务依赖刚刚的聊天语气、犹豫、半成品作答；只需读写少量文件；或外包会让教学断线。
-- 委托给 subagent：任务耗时长、文件重、批量重复、会污染主线程教学上下文、可独立验收，已有 manifest/validator 明确 gate，或触发写动文件数硬门槛。
-- 混合处理：先由 main agent 接住学生并完成当前教学回合；需要归档、全量分析或批量维护时，再把边界清楚的后台动作交给 subagent。
-- 不确定时，优先保护当前教学连续性；只有当委托能保护 main context 且有清晰验收标准时才委托。
-- 委托时给 subagent 的任务必须小而有边界：course root、选定 workflow、输入文件、允许写入范围、必须运行的 validator/manifest、返回格式。不要让 subagent 自行扩展范围、直接教学生或生成 S10 诊断。
-- subagent 返回 changed files、validation result、manifest status 和 uncertainty；main agent 决定是否接入当前对话，并把结果转成学生关心的下一步。
+1. **确认课程根目录。** 若用户未给出，只有当前 workspace 能唯一指向一门课时才自动推断；否则询问课程文件夹和目标动作。
+2. **读取 `references/schema-and-rules.md`。** 任何写入课程产物前都必须按 schema 执行。
+3. **读取课程口径。** 若 `<course-root>/课程口径.md` 存在，必须读取。范围优先级是：当前用户指令、已确认教学/考试范围、用户确认的教师重点、课程材料。学习阶段只调整解释粒度和先修展开，不扩展课程边界。
 
-## S10 Runtime 原则
+然后识别动作，只读取对应 workflow：
 
-- 不等待学生会提出高质量问题。若学生不知道问什么，基于章节主干、常见误区、过往证据或当前题目主动抛出一个最小 probe，例如“如果你不知道问什么，先问自己：这题的已知条件在竖线哪边？”
-- 主题文档先建立主干，AI 按主干讲一轮，然后通过练习、追问或小反例暴露真实错误。
-- 围绕暴露出的错误进行系统问答，最后沉淀为条件、坑点、反例、题型信号和第一步。
-- 没有作答证据时，优先制造一个很小的证据点；用户明确要求直接解释时可以先讲，但讲完要安排 repair action：复述、判断第一步、做近变式或指出易混点。
-- 诊断永远是 evidence-backed hypothesis，不是给学生贴永久标签。
-- `judgement` 只作为 attempt 类学习事件的可选粗结果，和 `做题记录.md` 的 `对/对但慢/卡/错/空` 对齐；教学主体使用 `diagnosis_hypothesis`、`evidence`、`confidence`、`next_probe`。
-- 有意义的学习证据出现后，追加 `30_我的数据/学习事件.jsonl`。不要记录每个闲聊回合。
-- S10 面向学生输出时，不报告“我读取/写入/编辑了哪些文件”或 validation 细节。学生关心的是解释、追问、修正和下一步；文件动作作为后台记忆层维护，除非用户明确要求看记录、审计或文件变更。
-- S10 在 Codex 回复中写公式时，必须使用可渲染 LaTeX：行内公式用 `\(...\)`，独立公式用 `\[...\]`，多行推导用 `\[\begin{aligned}...\end{aligned}\]`。不要在学生侧回复里使用裸公式、`$...$` 或 `$$...$$`。
-- `40_派生视图/学生状态快照.md` 是可由学习事件、做题记录和卡点清单重建的派生摘要，不是手工真相。
+- S0 课程初始化/检查：`references/workflow-s0-course-setup.md`
+- S1 试卷入库：`references/workflow-s1-paper-intake.md`
+- S2 考频分析：`references/workflow-s2-frequency-analysis.md`
+- S3 作答证据入库：`references/workflow-s3-grading-intake.md`
+- S4 练习候选：`references/workflow-s4-practice-queue.md`
+- S5 错因复盘：`references/workflow-s5-mistake-review.md`
+- S6 冲刺包：`references/workflow-s6-cram-pack.md`
+- S7 学习对话提取：`references/workflow-s7-dialogue-extraction.md`
+- S8 课件消化：`references/workflow-s8-courseware-digest.md`
+- S9 核验解答：`references/workflow-s9-verified-solutions.md`
+- S10 私教会话：`references/workflow-s10-tutor-session.md`
+
+用户没有明确要求文件型动作、只是在学习/提问/做题/纠错时，默认进入 **S10 主线程私教会话**。
+
+涉及 PDF、PPT/PPTX、扫描件或 PDF 产出的 Markdown 时，还必须读取 `references/pdf-ingestion.md`。
+
+## S10 主线程私教内核
+
+S10 是默认学习入口。主线程保留学生当前自然对话、语气、犹豫、刚才作答和即时上下文；结构化文件只是恢复和约束用的证据层。
+
+每个 S10 回合按这个顺序执行：
+
+1. **接住学生。** 先回应当前问题、作答、截图描述或卡点。不要为了查文件/写文件打断学生刚形成的理解。
+2. **用最小证据教学。** 学生无问题时主动给一个最小 probe；学生无尝试时先要第一步、题型判断、公式条件或卡点；学生有尝试时先诊断证据，再给最少足够提示。
+3. **制造 repair action。** 给过完整解释后，必须让学生复述关键条件、判断第一步、做近变式、指出反例或回答一个最小验证问题。
+4. **回合收尾记录检查。** 在结束本轮前，私下判断是否触发学习事件；触发且课程根目录可写时，追加 `30_我的数据/学习事件.jsonl` 并运行 S10 validator。不要把“可记录”当建议跳过。
+
+学习事件触发条件：
+
+- 学生完成一次题目、第一步、题型判断、变式或 repair 尝试；
+- 学生暴露清晰误解、条件混淆、起手错误或重要卡点；
+- 学生在提示后完成或未能完成修正；
+- 一次讲解后通过复述、近变式或反例产生了证据；
+- 主线程形成值得跨轮保留的诊断假设、`next_probe` 或教学动作结果。
+
+记录时优先使用脚本，避免手写 JSONL 出错：
+
+```text
+python <skill>/scripts/append_learning_event.py --course-root <course-root> --event-file <tmp-event.json>
+python <skill>/scripts/validate_course_artifacts.py --course-root <course-root> --scope s10
+```
+
+若没有课程根目录或当前环境不能写文件，不要假装已经记录；继续教学，并在需要跨轮保留时给出一个简短的“待记录学习事件”草稿供用户之后保存。
+
+面向学生输出时，不默认报告读取/写入/validator 细节。学生关心解释、追问、修正和下一步。只有用户要求审计、同步或交付物清单时，才报告变更文件和一行自检结果。
+
+## Delegation / Subagent 现实约束
+
+本技能不能靠文字自己创造 subagent。只有当前运行环境明确提供 subagent、task、background worker 或类似能力时，才可以委托。
+
+- **有 subagent 能力时：** PDF/OCR/PPT 转换、全题库扫描、长对话抽取、大课件消化、批量截图、整卷入库、跨 4 个以上文件写入等重文件动作应委托。委托任务必须边界清楚：course root、workflow、输入、允许写入范围、必须运行的 gate/validator、返回格式。
+- **没有 subagent 能力时：** 不要声称“已交给后台”。主线程按同一 gate 直接执行可完成的文件动作；若工作量太大，就完成当前教学回合并给出可执行的阻塞原因或最小下一步，不能承诺异步完成。
+- **永远不要委托现场教学。** 学生当前的解释、诊断、probe、提示和 repair action 留在 main agent。subagent 只做可验收的文件维护。
 
 ## 不可违背项
 
-- 用户控制节奏。除非用户要求，不创建日程、每日计划或“明天做什么”。
+- 用户控制节奏。除非用户要求，不创建长期日程、每日计划或“明天做什么”。
 - 保持单一事实来源：题目、标签和折叠解答块在 `10_题库/`；做题记录在 `30_我的数据/做题记录.md`；学习事件在 `30_我的数据/学习事件.jsonl`；派生视图在 `40_派生视图/`。
 - `00_原材料/` 只读。
-- 学习和复盘产物必须应试、易懂、绑定课程语言。解释围绕考点、识别信号、第一步、公式条件和常见错误展开；不要为了短而删掉必要先修、推理桥、例子或公式条件。
 - 保持课程边界。不要引入源材料和已确认范围以外的理论、记号、证明工具或术语。普通语言类比可以解释已在范围内的内容，但不能新增可考内容。
-- 不把手写作业长篇转写成文字。截图是证据文件；S3 文本记录只保存证据坐标、闭合判定、粗错因、低层批改事实和截图链接；开放诊断、`next_probe` 和学生状态判断只能由 S10 形成或由 S10 明确指示写入。
-- 闭合词表只用于统计和兼容记录。不要在执行中发明 judgement、wrong-cause 或 question-type 标签；确需新题型标签时按标签治理执行。
-- `40_派生视图/` 每个文件都以 `> 派生文件，可重新生成，勿手改。` 开头，并整体重建，不手改局部计数或行。
-- S1-S10 写入前检查该动作必需文件。若课程未初始化，先跑 S0，或只创建 schema 允许的动作专用种子文件并报告。
-- 遵守写入边界：S1 拥有题面、anchor 和标签；S9 只写题下折叠解答块；S3 只维护离线作答证据层，追加做题记录、归档 inbox 图片，并可写低解释度 attempt event；S5/S7 可追加卡点；S8 写 `20_知识/`；S2/S4/S5/S6/S10 写派生输出或学习事件，其余读取源数据。
+- 闭合词表只用于统计和兼容记录。不要在执行中发明 `judgement`、`wrong-cause` 或受控 `question_type` 标签；确需新题型标签时按标签治理执行。
+- `40_派生视图/` 每个 Markdown 文件第一行必须是 `> 派生文件，可重新生成，勿手改。`，派生视图整体重建，不手改局部计数或行。
+- S1-S10 写入前检查该动作必需文件。若课程未初始化，先跑 S0，或只创建 workflow 明确允许的动作专用种子文件并报告。
+- 遵守写入边界：S1 拥有题面、anchor 和标签；S9 只写题下折叠解答块；S3 只维护离线作答证据层；S5/S7 可追加卡点；S8 写 `20_知识/`；S2/S4/S5/S6/S10 写派生输出或学习事件。
 - S2 必须运行 `scripts/analyze_frequency_trends.py` 和 `scripts/render_frequency_views.py`，并验证 input fingerprint 和 Markdown 渲染一致性。不要临场重算解析、分类、时间窗或趋势阈值。
 - S7 的最终讲通解释必须逐字保留，不润色、不转述、不压缩。
-- 不操控用户打开的 Office 或 PowerPoint 窗口；需要时用副本、缓存转换或 headless 工具。
+- S10 面向学生回复公式时使用可渲染 LaTeX：行内 `\(...\)`，独立 `\[...\]`，多行 `\[\begin{aligned}...\end{aligned}\]`。不要用裸公式、`$...$` 或 `$$...$$`。
 - 证据不确定时说清楚，把不确定项留出确认，不写入不可逆记录。
-- 文件写入动作完成前，运行 `python <skill>/scripts/validate_course_artifacts.py --course-root <course-root> --scope <s1|...|s10|all>` 并报告一行自检结果。自然语言扫描不能替代 gate。
-- Workflow manifest 是完成证据：S1 PDF 入库需要已验证 `s1-intake` manifest，S3 需要完整批改 batch，S8 需要当前 digest manifest。
+- 文件写入动作完成前，运行 `python <skill>/scripts/validate_course_artifacts.py --course-root <course-root> --scope <s1|...|s10|all>`。自然语言扫描不能替代 gate。
 
 ## PDF 依赖
 
-S1 和基于 PDF 的 S8 必须以 [references/pdf-ingestion.md](./references/pdf-ingestion.md) 为权威转换和子代理协调契约。不要重述、削弱或临场改写 gate。转换子代理运行时，父级对该 cache 保持只读，并按 Gate 0 等待或交接。只有子代理最终完成且 Gate 1 独立验证 completion certificate 后，才能消费转换 Markdown。没有子代理时，父级可执行同一转换流程，但不能降低任何 gate。不要消费 draft，不要静默进入 fallback skill。
+S1 和基于 PDF 的 S8 使用 companion skill `$pdf-to-markdown`。以 `references/pdf-ingestion.md` 为权威契约。只有转换流程写出并通过 `completion.json` 验证后，才能消费其 `final_markdown`。
+
+`completion.json` 证明的是“该 Markdown 是当前 PDF 转换流程的认证输出”，不等于每道题已逐题人工/视觉复核。S1 只有在题面确实对照过原 PDF 或可信来源后，才能把 `ocr_status` 写成 `已对照 PDF 复核`；否则写 `已做结构修复` 或 `待复核`。
 
 ## 输出风格
 
-输出保持操作性：
+文件型动作输出保持操作性：
 
 - 变更文件
 - 闭合词表做出的判定
 - 需要用户确认的事项
 - 未解决的不确定性
+- 一行 validator / manifest 结果
 
-S10 教学对话例外：面向学生时隐藏内部文件读写和校验流水，只给教学回应、probe、repair action 或必要确认问题。只有用户请求文件动作、审计、同步或交付物清单时，才报告变更文件和自检结果。
-
-避免装饰性 dashboard、泛泛学习建议、不会改变用户下一步行为的分析。
+S10 教学对话例外：隐藏内部流水，只给教学回应、probe、repair action 或必要确认问题。避免装饰性 dashboard、泛泛学习建议、不会改变下一步行为的分析。
 
 ## 常见组合
 
-- 新学科：S0，然后把原始材料放入 `00_原材料/`，后续默认在 S10 里自然互动。
-- 概念学习：S8 先消化章节，main agent 用 S10 按主干讲一轮并主动 probe，章节学完后导出对话跑 S7。
+- 新学科：S0，然后把原始材料放入 `00_原材料/`，后续默认 S10。
+- 概念学习：S8 生成 grounding/启动卡，S10 按主干讲一轮并主动 probe，章节学完后可导出对话跑 S7。
 - 试卷搭建：S1 入库真题，S2 考频分析，定时整卷后用 S3 做离线作答证据入库，再由 S10 现场复盘。
-- 日常练习：S4 给候选上下文，S10 选择本轮任务；当前聊天作答由 S10 直接处理，需要归档离线截图时再交给 S3。
+- 日常练习：S4 给候选上下文，S10 选择本轮任务；需要归档离线截图时再转 S3。
 - 诊断：S5。
 - 考前：S6。

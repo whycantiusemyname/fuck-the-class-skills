@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
-import shutil
 from pathlib import Path
 
 
@@ -83,25 +81,9 @@ Rules:
 """
 
 
-def file_sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for block in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
-
-
-def prepare_segments(
-    markdown_path: Path,
-    output_dir: Path,
-    max_chars: int = 12000,
-    run_id: str | None = None,
-) -> dict[str, object]:
+def prepare_segments(markdown_path: Path, output_dir: Path, max_chars: int = 12000) -> dict[str, object]:
     text = markdown_path.read_text(encoding="utf-8")
     segments = split_markdown(text, max_chars=max_chars)
-
-    if output_dir.exists():
-        shutil.rmtree(output_dir)
 
     source_dir = output_dir / "source"
     prompt_dir = output_dir / "prompts"
@@ -128,7 +110,6 @@ def prepare_segments(
                 "end_line": segment["end_line"],
                 "char_count": len(str(segment["text"])),
                 "source_path": str(source_path),
-                "source_sha256": file_sha256(source_path),
                 "prompt_path": str(prompt_path),
                 "repaired_path": str(repaired_path),
             }
@@ -136,8 +117,6 @@ def prepare_segments(
 
     manifest = {
         "markdown_path": str(markdown_path),
-        "markdown_sha256": file_sha256(markdown_path),
-        "run_id": run_id,
         "segment_count": total_segments,
         "max_chars": max_chars,
         "segments": manifest_segments,
@@ -152,14 +131,12 @@ def main() -> int:
     parser.add_argument("markdown_path", help="Path to the generated Markdown file.")
     parser.add_argument("--output-dir", required=True, help="Directory for source segments, prompts, and repaired outputs.")
     parser.add_argument("--max-chars", type=int, default=12000, help="Target maximum characters per segment.")
-    parser.add_argument("--run-id", help="Workflow run identifier stored in the segment manifest.")
     args = parser.parse_args()
 
     prepare_segments(
         Path(args.markdown_path).expanduser().resolve(),
         Path(args.output_dir).expanduser().resolve(),
         max_chars=args.max_chars,
-        run_id=args.run_id,
     )
     print(f"Prepared LLM readthrough segments under {args.output_dir}")
     return 0

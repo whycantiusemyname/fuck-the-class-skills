@@ -1,4 +1,4 @@
 interface:
   display_name: "Fuck The Class"
   short_description: "绑定课程证据的大学应试与 AI 私教记忆层"
-  default_prompt: "使用 $fuck-the-class 进行绑定课程材料、题库、考频、卡点和学习事件的大学应试学习；让主线程 AI 私教基于证据自然讲解、主动追问、生成练习候选、批改复盘并沉淀可追溯学习状态。"
+  default_prompt: "使用 $fuck-the-class 运行 source-bound AI 私教学习：读取课程口径、题库、考频、卡点和学习事件，在 S10 主线程中讲解、追问、纠错、生成最小练习证据，并在触发条件满足时记录学习事件。"

@@ -1,6 +1,6 @@
 ---
 name: pdf-to-markdown
-description: Convert local PDF files into one high-confidence Obsidian Markdown note through MinerU, segmented LLM repair, page-by-page visual source verification, deterministic completion gates, and a hash-bound completion certificate. Use when Codex needs a MinerU-first PDF conversion whose final Markdown must not be consumed until text repair and source-PDF verification are complete.
+description: Convert local PDF files into one Obsidian Markdown note through the MinerU precise parsing API, with automatic preflight, safe chunking for size and page limits, result download, light deterministic normalization, and a final segmented LLM readthrough pass for math and formatting cleanup. Use when Codex needs a MinerU-first workflow for PDF-to-Markdown conversion and should only propose legacy visual fallback skills after reporting failures and receiving explicit user approval.
 ---
 
 # Pdf To Markdown
@@ -17,10 +17,9 @@ Default to:
 - single-chunk passthrough when MinerU returns one usable `full.md`
 - merge-mode rewriting only when the PDF had to be split into multiple chunks
 - one segmented LLM readthrough pass after the Markdown draft is ready
-- page-by-page visual verification of repaired segments against the source PDF
-- final delivery only after deterministic validation writes `completion.json`
+- final completion certificate writing and verification after repaired segments are merged
 
-Do not use fallback, reconstruction, or vision-crop skills in this workflow. If retries, re-splitting, or visual verification leave unresolved content, stop and report the exact blocker. A different workflow requires a separate explicit user request.
+Do not use legacy fallback skills automatically. If retries and re-splitting still leave failed ranges, stop and report the failure ranges, reasons, and recommended fallback path. Only call a fallback skill after the user explicitly approves it.
 
 ## Workflow
 
@@ -37,9 +36,6 @@ Recommended layout:
 ```text
 tmp/<note-stem>/
   manifest.json
-  workflow_state.json
-  draft.md
-  completion.json
   chunks/
   results/
   normalized/
@@ -80,8 +76,6 @@ python scripts/run_pdf_to_markdown.py input.pdf output.md --work-dir tmp\my-note
 python scripts/run_pdf_to_markdown.py input.pdf output.md --work-dir tmp\my-note --image-width 720
 ```
 
-The positional `output.md` is the requested final path, not an immediate script output. The runner writes `draft.md` under the work directory and exits with code `3` after MinerU preparation succeeds. Code `3` means `awaiting_text_repair`, not failure and not completion. Only `scripts/finalize_pdf_to_markdown.py` may create the requested final Markdown and `completion.json`.
-
 The runner orchestrates:
 
 - chunk preparation
@@ -94,7 +88,6 @@ The runner orchestrates:
 - normalization
 - merged draft generation
 - one generated segmented readthrough package for the final LLM pass
-- `workflow_state.json` with source, draft, run, and hash identity
 
 If you need to inspect or rerun one stage manually, use:
 
@@ -126,13 +119,13 @@ The required order is:
 3. retry transient parse failures with a new `data_id`
 4. re-split chunks that still violate size or page limits
 5. stop and report unresolved failed ranges
-6. stop and report; do not enter another skill from this workflow
+6. only after explicit user approval, enter a legacy fallback skill
 
 Do not skip directly from API failure to manual Codex reconstruction.
 
 ### 5. Normalize and merge
 
-If the PDF stayed as one chunk and MinerU produced one usable `full.md`, do not normalize or rewrite the Markdown. Export `full.md` byte-for-byte to `work_dir/draft.md` and stage its sibling `images/` directory under the work directory.
+If the PDF stayed as one chunk and MinerU produced one usable `full.md`, do not normalize or rewrite the Markdown. Export `full.md` directly to the requested output path and copy the sibling `images/` directory beside it.
 
 Only when the PDF was split into multiple chunks should you run `scripts/normalize_obsidian_output.py` for each successful chunk result.
 
@@ -146,7 +139,7 @@ Normalization should stay intentionally light. It should:
 - normalize line endings only
 - avoid table restructuring, layout rewriting, and issue-detection heuristics
 
-Then run `scripts/merge_markdown_chunks.py` to create `work_dir/draft.md`:
+Then run `scripts/merge_markdown_chunks.py` to:
 
 - sort chunks by original page range
 - concatenate them into one Markdown draft with minimal interference
@@ -166,46 +159,37 @@ After MinerU output has been exported or merged:
 - keep table structure, image paths, and section order unchanged unless a tiny local fix is required
 - use [references/llm-readthrough-repair.md](./references/llm-readthrough-repair.md) as the default prompt template
 - prefer the generated `reports/llm_readthrough_prompt.txt` plus the per-segment prompt files as the direct handoff artifacts
-- write every segment to its matching `repaired/segment-XXX.md`, including unchanged segments
-- run `scripts/validate_text_repairs.py --work-dir <work-dir>` after every repaired segment exists
+- after all repaired segments are ready, merge them back with `scripts/merge_llm_readthrough_segments.py`
 
 The LLM pass is now the default post-processing step, not an exceptional cleanup path. The deterministic scripts should stay light and conservative; the LLM handles the final segment-by-segment formatting pass.
 
-Do not merge repaired segments into the requested final path. Missing segments, stale run identifiers, changed source hashes, empty outputs, or changed image references must fail the text gate.
 
-### 5.6 Run Visual Source Verification
+### 5.6 Write And Verify completion.json
 
-After the text gate passes:
-
-1. Run `scripts/prepare_visual_review.py --work-dir <work-dir>` to render every PDF page with PyMuPDF and create per-segment prompts and review records.
-2. Process repaired segments in order. Inspect exactly one rendered page image at a time and locate segment content by headings, question numbers, boundary text, formulas, and tables. Start each later segment from the previous segment's boundary page; overlap is allowed.
-3. Check omissions, duplicates, order, numbers, signs, subscripts, superscripts, limits, matrices, question labels, options, tables, figures, and captions.
-4. Write every complete result to `reports/visual_review/verified/segment-XXX.md`. Preserve image references exactly. If no edit is needed, still create the verified file.
-5. Record the segment with `scripts/record_visual_review.py`, including every inspected 1-based PDF page as one contiguous range. Segment ranges must advance in document order; boundary-page overlap is allowed. Use `passed` only when no uncertainty remains; otherwise use `blocked` and record unresolved items.
-
-Read [references/visual-source-verification.md](./references/visual-source-verification.md) before this stage. This is source verification inside this skill, not visual reconstruction. Do not call `$pdf-to-obsidian-notes-vision-crop-with-subagent` or any other fallback skill during verification.
-
-### 5.7 Finalize And Certify
-
-Run:
+After every segment has been repaired and merged back into the requested final Markdown path, write and verify the completion certificate:
 
 ```powershell
-python scripts/finalize_pdf_to_markdown.py --work-dir tmp\my-note
+python scripts/write_completion.py --source-pdf input.pdf --final-markdown output.md --work-dir tmp\my-note
 python scripts/verify_completion.py --work-dir tmp\my-note
 ```
 
-The finalizer must merge only `verified/` segments, require complete PDF page coverage and zero unresolved issues, recheck hashes and image references, run control-character/LaTeX/link checks, atomically write the requested final Markdown, and then write `completion.json`. A natural-language completion claim is never a substitute for a valid certificate.
+Do not report the conversion as complete before `verify_completion.py` exits `0`. The certificate is the handoff contract used by parent skills such as `$fuck-the-class`; natural-language success reports, draft Markdown, source segments, repaired segment files, and MinerU chunk outputs are not a completion certificate.
 
-### 6. Stop On Unresolved Content
+`completion.json` proves that the final Markdown is the certified output of this conversion workflow. It does not prove that every downstream course question has been manually or visually checked against the source PDF.
 
-If ranges still fail after retries and re-splitting, or visual verification remains uncertain:
+### 6. Escalate to fallback only with approval
+
+If some ranges still fail after retries and re-splitting:
 
 - summarize the failed page ranges
 - include the last known MinerU error
 - describe what retries or re-splitting already happened
-- keep the workflow blocked and do not create the requested final Markdown
+- recommend either the whole-document fallback or local vision-crop fallback
 
-Stop after reporting unresolved ranges or visual uncertainty. Do not enter, call, or silently imitate any fallback skill during this workflow. A later fallback action requires a separate explicit user request.
+Only after the user says yes:
+
+- use `$pdf-to-obsidian-notes-with-subagent` for whole-document fallback
+- use `$pdf-to-obsidian-notes-vision-crop-with-subagent` for local or visual-only fallback
 
 ## Scripts
 
@@ -218,13 +202,12 @@ Use as the main end-to-end runner. It produces:
 - `results/`
 - `normalized/`
 - `reports/`
-- `draft.md` under the work directory
-- `workflow_state.json` with status `awaiting_text_repair`
+- a merged Markdown draft
 - `reports/llm_readthrough_prompt.txt`
 - `reports/llm_readthrough_segments/`
 
-If unresolved failures remain, it exits with code `2` and records a blocked workflow. A successful preparation exits with code `3` because the final workflow is deliberately incomplete.
-When the document stays as one chunk, it exports MinerU `full.md` directly to the draft and stages `images/` under the work directory.
+If unresolved failures remain, it exits non-zero and writes a fallback recommendation report instead of calling another skill by itself.
+When the document stays as one chunk, it exports MinerU `full.md` directly and copies `images/` beside the output note.
 
 ### `scripts/prepare_pdf_chunks.py`
 
@@ -256,22 +239,21 @@ Split the final Markdown into manageable ordered segments, create one segment fi
 
 ### `scripts/merge_llm_readthrough_segments.py`
 
-Merge repaired segment files only for inspection or debugging. Do not use this script to create a certified final note; the certified path merges only visually verified segments.
+Merge repaired segment files back into one final Markdown note after the segmented LLM pass finishes.
 
-### Completion gate scripts
+### `scripts/write_completion.py`
 
-- `scripts/validate_text_repairs.py`: require every current-run repaired segment and preserve image references.
-- `scripts/prepare_visual_review.py`: render source pages and prepare ordered visual review records.
-- `scripts/record_visual_review.py`: bind one verified segment to its pages, hashes, changes, and unresolved status.
-- `scripts/finalize_pdf_to_markdown.py`: enforce all gates and atomically create the final Markdown plus `completion.json`.
-- `scripts/verify_completion.py`: independently recompute source/final/segment hashes and coverage before another skill consumes the result.
+Write `completion.json` after the final Markdown has been produced and every LLM readthrough segment has a repaired output. It records source PDF hash, final Markdown hash, manifest hash, segment manifest hash, unresolved count, and the workspace path.
+
+### `scripts/verify_completion.py`
+
+Verify `completion.json`, hashes, successful MinerU chunks, and repaired segment presence. Parent skills should only consume `final_markdown` after this script exits `0`.
 
 ## References
 
 - Read [references/mineru-api.md](./references/mineru-api.md) for the exact API constraints this skill assumes.
 - Read [references/obsidian-normalization.md](./references/obsidian-normalization.md) for normalization rules.
 - Read [references/llm-readthrough-repair.md](./references/llm-readthrough-repair.md) for the default segmented LLM cleanup workflow.
-- Read [references/visual-source-verification.md](./references/visual-source-verification.md) for page-by-page verification and review-record rules.
 
 ## Final Check
 
@@ -280,13 +262,10 @@ Before delivering the result, verify:
 - every submitted chunk is accounted for in `manifest.json`
 - no final chunk exceeds the safe chunk limits
 - every successful chunk has `full.md`
-- in single-chunk mode, the staged draft remains byte-identical to MinerU `full.md` before LLM repair
+- in single-chunk mode, the exported note sits beside a working `images/` directory
 - in merge mode, every rewritten image link points at an existing file
-- every expected repaired and verified segment exists and belongs to the current `run_id`
-- every visual review is `passed`, has zero unresolved items, and records inspected pages
-- the union of inspected pages exactly covers every source PDF page
-- the final Markdown is the ordered merge of current verified segments only
-- control-character, LaTeX, unresolved-marker, and broken-image checks all report zero
-- `completion.json` is `complete` and its source/final hashes verify
+- `reports/llm_readthrough_prompt.txt` exists for the final LLM cleanup pass
+- `reports/llm_readthrough_segments/manifest.json` exists for segmented readthrough
 - unresolved failures are reported to the user instead of silently dropped
-- no fallback, reconstruction, or vision-crop skill was called
+- `completion.json` exists and `scripts/verify_completion.py --work-dir <work-dir>` exits `0`
+- no fallback skill was called without explicit user approval

@@ -38,7 +38,7 @@ def normalize_newlines(text: str) -> str:
 
 def repair_bracket_math_blocks(text: str) -> str:
     math_markers = ("\\", "_", "^", "\\times", "\\mathrm", "\\text", "=")
-    pattern = re.compile(r"^[ \t]*\[[ \t]*(.+?)[ \t]*\][ \t]*$", re.MULTILINE)
+    pattern = re.compile(r"\[\s*(.+?)\s*\]")
 
     def replace(match: re.Match[str]) -> str:
         inner = match.group(1).strip()

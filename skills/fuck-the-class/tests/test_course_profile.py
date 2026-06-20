@@ -82,30 +82,28 @@ class CourseProfileTests(unittest.TestCase):
         for term in ("limsup", "Cauchy criteria", "Hessian", "Jacobian"):
             self.assertNotIn(term, workflow)
 
-    def test_s8_readability_rules_are_explicit(self):
+    def test_s8_runtime_grounding_rules_are_explicit(self):
         workflow = (Path(__file__).parents[1] / "references" / "workflow-s8-courseware-digest.md").read_text(
             encoding="utf-8"
         )
         for required in (
-            "> **解释**：",
-            "题目信号、第一步、公式含义、合法条件和常见误用",
-            "原有 S8 guided review 契约的补充",
-            "不能让主干笔记比原契约更短、更紧、更像提纲",
-            "不要把本来应展开的定义、直觉、推理桥、代表例子、公式含义、合法条件和常见误用压缩成索引项",
-            "该节是 S10 入口，不替代前面的解释",
-            "该节不得替代 `分节主干`",
+            "AI tutor grounding + 学生最小启动入口",
+            "默认目标不是写一篇越长越好的静态讲义",
+            "完整主干讲义仍可生成，但只在用户明确要求",
+            "让学生从“无问题状态”进入“能做第一步/能追问/能暴露错误”的状态",
+            "这一章解决什么类型的问题？",
+            "看到题目先看什么信号？",
+            "第一动作是什么？",
+            "公式/方法成立条件是什么？",
+            "立刻进入 S10 的最小 probe 是什么？",
+            "来源与边界",
+            "S10 主动 probe 种子",
+            "完整讲义不是默认主学习场",
             "段落适合电子阅读",
             "长段必须拆",
-            "\\underbrace",
-            "\\overbrace",
-            "\\text{...}",
-            "\\boxed{...}",
-            "\\color{...}",
-            "颜色不能成为唯一信息载体",
         ):
             self.assertIn(required, workflow)
         self.assertNotIn("通俗解释", workflow)
-        self.assertNotIn("学生最小启动讲解", workflow)
 
     def _write(self, name: str, content: str) -> Path:
         path = self.root / name
