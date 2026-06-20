@@ -49,11 +49,14 @@ S0 初始化后，默认进入 S10 主线程私教 runtime。S10 不是传统 IT
 
 - main agent 是 S10 runtime。它保留学生的自然对话、语气、犹豫、刚才的作答和即时上下文；这些完整上下文优先于结构化摘要。
 - 结构化证据层用于恢复、审计、委托和跨轮次延续，不替代 main agent 对当前学生的理解。
-- S1-S9 是有边界动作，不默认外包。main agent 可以直接执行，也可以在上下文成本高时委托给 subagent。
-- 只有任务耗时长、文件重、会污染当前教学上下文、可独立验收，或已有 manifest/validator 明确 gate 时，才考虑委托。例如大 PDF/OCR、全量入库、全量考频、大课件消化、批量整卷截图、大范围配解答。
-- 小范围文件动作通常由 main agent 直接做。例如一两道题的 S9、少量 S3 证据入库、小规模 S4 候选、小复盘、读一两个相关文件。
-- 委托时要求 subagent 返回变更文件、校验结果、manifest 状态和不确定项；main agent 负责把结果接回当前教学对话。
-- 现场教学默认由 main agent 负责，不把学生当前问题直接甩给 subagent。subagent 不应直接教学生，除非用户明确要求。
+- main agent 每次遇到非平凡动作前，都先做动态委托判断：这一步是在继续当前教学，还是在维护证据层文件？
+- 不按动作编号机械分工：S1-S9 不等于必须 subagent，S10 也不等于禁止 subagent。main agent 可以直接执行小范围 S1-S9，也可以把重文件动作委托出去。
+- 留在 main agent：学生正在等解释、诊断、probe、提示或修正；任务依赖刚刚的聊天语气、犹豫、半成品作答；只需读写少量文件；或外包会让教学断线。
+- 委托给 subagent：任务耗时长、文件重、批量重复、会污染主线程教学上下文、可独立验收，或已有 manifest/validator 明确 gate。例如大 PDF/OCR、全量入库、全量考频、大课件消化、批量整卷截图、大范围配解答。
+- 混合处理：先由 main agent 接住学生并完成当前教学回合；需要归档、全量分析或批量维护时，再把边界清楚的后台动作交给 subagent。
+- 不确定时，优先保护当前教学连续性；只有当委托能保护 main context 且有清晰验收标准时才委托。
+- 委托时给 subagent 的任务必须小而有边界：course root、选定 workflow、输入文件、允许写入范围、必须运行的 validator/manifest、返回格式。不要让 subagent 自行扩展范围、直接教学生或生成 S10 诊断。
+- subagent 返回 changed files、validation result、manifest status 和 uncertainty；main agent 决定是否接入当前对话，并把结果转成学生关心的下一步。
 
 ## S10 Runtime 原则
 
