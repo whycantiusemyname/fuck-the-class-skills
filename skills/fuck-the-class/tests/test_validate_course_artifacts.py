@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import sys
 import tempfile
 import unittest
@@ -10,6 +11,44 @@ from pathlib import Path
 SCRIPTS = Path(__file__).parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 import validate_course_artifacts as validator
+import s8_digest_gate
+
+
+def valid_s8_main_doc() -> str:
+    paragraph = (
+        "这一段说明本章问题怎样从前面章节自然出现，也说明题面中要先看什么，"
+        "如果误判第一步会导致哪种常见错误。"
+    )
+    body = paragraph * 8
+    return "\n\n".join([
+        "# 第 8 章 信号产生电路 主干讲解",
+        "## 本章放在课程里的位置\n" + body,
+        "## 这一章抓什么\n" + body,
+        "## 先建立整体直觉\n输出高电平 → 电容充电 → 达到阈值 → 比较器翻转 → 电容反向变化。\n" + body,
+        "## 本章怎么串起来\n" + body,
+        "## 核心主题一：正弦振荡",
+        "### 直觉\n" + body,
+        "### 公式 / 条件\n其中每个符号都对应题目中的一个判断对象。\n\\[\n|AF|=1\n\\]\n这个条件表示信号绕环路一周后大小维持不变，题目中先看反馈网络和放大器。",
+        "### 公式为什么这样\n" + body,
+        "### 题目怎么起手\n" + body,
+        "### 易错点\n" + body,
+        "## 典型题型入口\n" + body,
+        "## 本章总图\n" + body,
+        "## 复习检查\n- [ ] 我能解释环路条件。\n- [ ] 我能说出第一步。",
+        "## 进入 S10 的问题入口\n" + body,
+    ])
+
+
+def valid_s8_start_card() -> str:
+    return """# 第 8 章 S10启动卡
+
+> 这是进入 S10 问答/做题前的启动卡，不替代 `主干讲解.md`。
+> 完全没学过本章时，先读主干讲解；读过但准备做题时，再读这份。
+
+## 最小自测
+问题：看到 RC 桥式振荡先看什么？
+参考答案：先看环路相位和幅度条件。
+"""
 
 
 class ValidateCourseArtifactsTests(unittest.TestCase):
@@ -196,6 +235,58 @@ class ValidateCourseArtifactsTests(unittest.TestCase):
         snapshot.write_text(validator.DERIVED_MARKER + "\n\n# 学生状态快照\n", encoding="utf-8")
         errors, _, _ = validator.validate(self.root, "s10")
         self.assertFalse(any("派生文件标记" in error for error in errors))
+
+    def test_s8_accepts_valid_three_layer_outputs(self):
+        source = self.root / "00_原材料" / "课件.pdf"
+        source.parent.mkdir(exist_ok=True)
+        source.write_bytes(b"source")
+        main = self.root / "20_知识" / "第08章_信号产生电路_主干讲解.md"
+        grounding = self.root / "20_知识" / "第08章_信号产生电路_grounding.md"
+        start = self.root / "20_知识" / "第08章_信号产生电路_S10启动卡.md"
+        main.write_text(valid_s8_main_doc(), encoding="utf-8")
+        grounding.write_text("# grounding\n\n## 来源与边界\n课件第 1 页。\n\n## S10 主动 probe 种子\nprobe。", encoding="utf-8")
+        start.write_text(valid_s8_start_card(), encoding="utf-8")
+        s8_digest_gate.bind(self.root, "第08章", [source], [], [main, grounding, start])
+        errors, _, _ = validator.validate(self.root, "s8")
+        self.assertEqual(errors, [])
+
+    def test_s8_allows_explicit_grounding_only_manifest_mode(self):
+        source = self.root / "00_原材料" / "课件.pdf"
+        source.parent.mkdir(exist_ok=True)
+        source.write_bytes(b"source")
+        grounding = self.root / "20_知识" / "第08章_信号产生电路_grounding.md"
+        grounding.write_text("# grounding\n\n## 来源与边界\n课件第 1 页。\n\n## S10 主动 probe 种子\nprobe。", encoding="utf-8")
+        s8_digest_gate.bind(self.root, "第08章-grounding", [source], [], [grounding], mode="grounding-only")
+        errors, _, _ = validator.validate(self.root, "s8")
+        self.assertFalse(any("必须先有主干讲解" in error for error in errors))
+
+    def test_s8_rejects_default_manifest_without_main_doc(self):
+        source = self.root / "00_原材料" / "课件.pdf"
+        source.parent.mkdir(exist_ok=True)
+        source.write_bytes(b"source")
+        grounding = self.root / "20_知识" / "第08章_信号产生电路_grounding.md"
+        grounding.write_text("# grounding\n\n## 来源与边界\n课件第 1 页。\n\n## S10 主动 probe 种子\nprobe。", encoding="utf-8")
+        manifest_dir = self.root / "90_缓存" / "s8-digest" / "第08章"
+        manifest_dir.mkdir(parents=True)
+        manifest = manifest_dir / "digest.json"
+        manifest.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "status": "complete",
+                    "chapter": "第08章",
+                    "mode": "default",
+                    "sources": [{"path": "00_原材料/课件.pdf", "sha256": s8_digest_gate.sha256_file(source)}],
+                    "completions": [],
+                    "outputs": [{"path": "20_知识/第08章_信号产生电路_grounding.md", "sha256": s8_digest_gate.sha256_file(grounding)}],
+                    "warnings": [],
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        errors, _, _ = validator.validate(self.root, "s8")
+        self.assertTrue(any("必须先有主干讲解" in error for error in errors))
 
 
 if __name__ == "__main__":

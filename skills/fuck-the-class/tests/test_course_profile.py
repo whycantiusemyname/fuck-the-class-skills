@@ -82,27 +82,28 @@ class CourseProfileTests(unittest.TestCase):
         for term in ("limsup", "Cauchy criteria", "Hessian", "Jacobian"):
             self.assertNotIn(term, workflow)
 
-    def test_s8_runtime_grounding_rules_are_explicit(self):
+    def test_s8_main_explanation_rules_are_explicit(self):
         workflow = (Path(__file__).parents[1] / "references" / "workflow-s8-courseware-digest.md").read_text(
             encoding="utf-8"
         )
         for required in (
-            "AI tutor grounding + 学生最小启动入口",
-            "默认目标不是写一篇越长越好的静态讲义",
-            "完整主干讲义仍可生成，但只在用户明确要求",
-            "让学生从“无问题状态”进入“能做第一步/能追问/能暴露错误”的状态",
-            "这一章解决什么类型的问题？",
-            "看到题目先看什么信号？",
-            "第一动作是什么？",
-            "公式/方法成立条件是什么？",
-            "立刻进入 S10 的最小 probe 是什么？",
-            "来源与边界",
-            "S10 主动 probe 种子",
-            "完整讲义不是默认主学习场",
-            "段落适合电子阅读",
-            "长段必须拆",
+            "主干讲解",
+            "grounding",
+            "S10启动卡",
+            "第一优先级是高可读性的学生主干讲解",
+            "若时间或上下文只够生成一个文件，优先生成 `主干讲解.md`",
+            "第XX章_主题_主干讲解.md",
+            "第XX章_主题_grounding.md",
+            "第XX章_主题_S10启动卡.md",
+            "本章放在课程里的位置",
+            "先建立整体直觉",
+            "题目怎么起手",
+            "进入 S10 的问题入口",
+            "lint_s8_chapter_docs.py",
+            "不得用启动卡替代主干讲解",
         ):
             self.assertIn(required, workflow)
+        self.assertNotIn("AI tutor grounding + 新手入门讲解", workflow)
         self.assertNotIn("通俗解释", workflow)
 
     def _write(self, name: str, content: str) -> Path:

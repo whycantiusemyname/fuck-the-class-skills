@@ -14,6 +14,7 @@ from urllib.parse import unquote
 
 import analyze_frequency_trends as analyzer
 import render_frequency_views as renderer
+import lint_s8_chapter_docs
 import course_profile
 
 
@@ -612,20 +613,46 @@ def starter_provenance_issues(course_root: Path) -> list[str]:
     return issues
 
 
-def s8_manifest_issues(course_root: Path, *, strict_missing: bool) -> list[str]:
+def s8_manifest_issues(course_root: Path, *, strict_missing: bool) -> tuple[list[str], list[str]]:
     manifests = sorted((course_root / "90_缓存" / "s8-digest").glob("*/digest.json"))
     knowledge_notes = [path for path in (course_root / "20_知识").glob("*.md") if path.name != "README.md"]
     if strict_missing and knowledge_notes and not manifests:
-        return ["20_知识 存在章节产物但没有 S8 digest manifest"]
+        return ["20_知识 存在章节产物但没有 S8 digest manifest"], []
     import s8_digest_gate
 
     issues: list[str] = []
+    warnings: list[str] = []
+    allowed_single: set[str] = set()
+    for manifest in manifests:
+        try:
+            payload = json.loads(manifest.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError) as exc:
+            issues.append(f"{manifest}: 无法读取 S8 manifest mode：{exc}")
+            continue
+        if payload.get("mode") in {"grounding-only", "quick-start-only"}:
+            for item in payload.get("outputs", []):
+                try:
+                    output_path = s8_digest_gate.resolve_record(course_root, item)
+                    allowed_single.add(lint_s8_chapter_docs.chapter_key(output_path))
+                except Exception:
+                    continue
+    knowledge_root = course_root / "20_知识"
+    lint_report = lint_s8_chapter_docs.lint_knowledge_root(knowledge_root)
+    filtered_errors = []
+    for error in lint_report.errors:
+        key = error.split(":", 1)[0]
+        if key in allowed_single and "不能只有 grounding 或 S10启动卡" in error:
+            continue
+        filtered_errors.append(error)
+    lint_report.errors = filtered_errors
+    issues.extend(lint_report.errors)
+    warnings.extend(lint_report.warnings)
     for manifest in manifests:
         try:
             s8_digest_gate.verify(manifest)
         except s8_digest_gate.DigestError as exc:
             issues.append(str(exc))
-    return issues
+    return issues, warnings
 
 
 def s2_issues(course_root: Path) -> list[str]:
@@ -662,6 +689,7 @@ def validate(course_root: Path, scope: str) -> tuple[list[str], list[str], dict[
         bare_math.extend(bare_math_warnings(path, text))
     links = link_issues(course_root, files)
     errors = [*control, *latex, *links, *derived_marker_issues(course_root, files)]
+    warnings = bare_math
     if scope in {"s1", "all"}:
         errors.extend(s1_artifact_issues(course_root))
     profile_path = course_profile.profile_path(course_root)
@@ -683,9 +711,10 @@ def validate(course_root: Path, scope: str) -> tuple[list[str], list[str], dict[
     if scope in {"s6", "all"}:
         errors.extend(starter_provenance_issues(course_root))
     if scope in {"s8", "all"}:
-        errors.extend(s8_manifest_issues(course_root, strict_missing=scope == "s8"))
+        s8_errors, s8_warnings = s8_manifest_issues(course_root, strict_missing=scope == "s8")
+        errors.extend(s8_errors)
+        warnings.extend(s8_warnings)
     counts = {"control": len(control), "latex": len(latex), "links": len(links)}
-    warnings = bare_math
     return errors, warnings, counts
 
 

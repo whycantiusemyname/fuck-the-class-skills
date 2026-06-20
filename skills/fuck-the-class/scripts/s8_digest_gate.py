@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import lint_s8_chapter_docs
+
 
 class DigestError(Exception):
     pass
@@ -61,6 +63,7 @@ def bind(
     completions: list[Path],
     outputs: list[Path],
     replace: bool = False,
+    mode: str = "default",
 ) -> Path:
     course_root = course_root.resolve()
     target = course_root / "90_缓存" / "s8-digest" / safe_chapter(chapter) / "digest.json"
@@ -80,6 +83,7 @@ def bind(
             raise DigestError(f"completion 的认证 Markdown 哈希失配：{completion}")
     knowledge_root = (course_root / "20_知识").resolve()
     output_records = []
+    lint_report = lint_s8_chapter_docs.LintReport()
     for output in outputs:
         output = output.resolve()
         try:
@@ -87,6 +91,10 @@ def bind(
         except ValueError as exc:
             raise DigestError(f"S8 输出必须位于 20_知识：{output}") from exc
         output_records.append(record(output, course_root))
+    lint_report.extend(lint_s8_chapter_docs.lint_files([path.resolve() for path in outputs], mode=mode))
+    if lint_report.errors:
+        raise DigestError("\n".join(lint_report.errors))
+    warnings.extend(lint_report.warnings)
     raw_root = (course_root / "00_原材料").resolve()
     source_records = []
     for source in sources:
@@ -100,6 +108,7 @@ def bind(
         "schema_version": 1,
         "status": "complete",
         "chapter": chapter,
+        "mode": mode,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "sources": source_records,
         "completions": completion_records,
@@ -139,6 +148,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     bind_parser.add_argument("--source", required=True, action="append", type=Path)
     bind_parser.add_argument("--completion", action="append", default=[], type=Path)
     bind_parser.add_argument("--output", required=True, action="append", type=Path)
+    bind_parser.add_argument("--mode", choices=("default", "grounding-only", "quick-start-only"), default="default")
     bind_parser.add_argument("--replace", action="store_true")
     verify_parser = commands.add_parser("verify")
     verify_parser.add_argument("--manifest", required=True, type=Path)
@@ -149,7 +159,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
         if args.command == "bind":
-            print(bind(args.course_root, args.chapter, args.source, args.completion, args.output, args.replace))
+            print(bind(args.course_root, args.chapter, args.source, args.completion, args.output, replace=args.replace, mode=args.mode))
         else:
             verify(args.manifest)
             print("S8 digest manifest 验证通过")
