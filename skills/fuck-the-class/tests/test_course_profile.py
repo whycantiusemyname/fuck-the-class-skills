@@ -95,14 +95,17 @@ class CourseProfileTests(unittest.TestCase):
             "第XX章_主题_主干讲解.md",
             "第XX章_主题_grounding.md",
             "第XX章_主题_S10启动卡.md",
-            "本章放在课程里的位置",
+            "自然叙事结构",
             "先建立整体直觉",
-            "题目怎么起手",
+            "分节主干",
+            "解题流程",
+            "写完后的质量检查项",
             "进入 S10 的问题入口",
             "lint_s8_chapter_docs.py",
             "不得用启动卡替代主干讲解",
         ):
             self.assertIn(required, workflow)
+        self.assertNotIn("每节必须包含 `直觉`", workflow)
         self.assertNotIn("AI tutor grounding + 新手入门讲解", workflow)
         self.assertNotIn("通俗解释", workflow)
 

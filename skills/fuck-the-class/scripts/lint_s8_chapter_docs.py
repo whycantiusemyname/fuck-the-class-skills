@@ -30,18 +30,23 @@ class LintReport:
         self.warnings.extend(other.warnings)
 
 
-MAIN_REQUIRED_HEADINGS = (
-    "本章放在课程里的位置",
-    "这一章抓什么",
-    "先建立整体直觉",
-    "本章怎么串起来",
-    "典型题型入口",
-    "本章总图",
-    "复习检查",
-    "进入 S10 的问题入口",
+MAIN_REQUIRED_HEADING_GROUPS = (
+    ("章节主线", ("这一章抓什么", "这一章的核心问题", "本章放在课程里的位置")),
+    ("整体直觉", ("先建立整体直觉", "先建立整体图像", "整体直觉", "整体图像")),
+    ("本章串联", ("本章怎么串起来", "本章主线图", "本章总图")),
+    ("分节主干", ("分节主干", "核心讲解节", "核心主题", "核心主干")),
+    ("解题或题型入口", ("解题流程", "典型题型入口", "题型入口", "题目入口")),
+    ("易错提醒", ("易错点", "常见误判", "常见坑", "易错提醒")),
+    ("复习检查", ("复习检查", "自测检查")),
 )
 
-CORE_REQUIRED_HEADINGS = (
+S10_ENTRY_HEADINGS = (
+    "进入 S10 的问题入口",
+    "进入 S10",
+    "提问入口",
+)
+
+FIXED_CORE_TEMPLATE_HEADINGS = (
     "直觉",
     "公式 / 条件",
     "公式为什么这样",
@@ -102,6 +107,33 @@ def has_heading(text: str, heading: str) -> bool:
         if target in normalized:
             return True
     return False
+
+
+def heading_titles(text: str) -> list[str]:
+    return [match.group(1).strip() for match in HEADING_RE.finditer(text)]
+
+
+def normalize_heading(value: str) -> str:
+    return re.sub(r"[\s`/／：:、，,。.!！?？（）()]+", "", value)
+
+
+def heading_matches(title: str, target: str) -> bool:
+    return normalize_heading(target) in normalize_heading(title)
+
+
+def has_any_heading(text: str, headings: tuple[str, ...]) -> bool:
+    return any(has_heading(text, heading) for heading in headings)
+
+
+def fixed_template_sequence_count(text: str) -> int:
+    titles = heading_titles(text)
+    count = 0
+    size = len(FIXED_CORE_TEMPLATE_HEADINGS)
+    for index in range(0, max(0, len(titles) - size + 1)):
+        window = titles[index : index + size]
+        if all(heading_matches(title, target) for title, target in zip(window, FIXED_CORE_TEMPLATE_HEADINGS)):
+            count += 1
+    return count
 
 
 def cjk_count(text: str) -> int:
@@ -175,29 +207,36 @@ def lint_main_doc(text: str, *, path: Path | None = None) -> LintReport:
     for phrase in OLD_CHECKLIST_SIGNALS:
         if phrase in text:
             report.add_error(f"{label}出现速查式主体信号 `{phrase}`；主干讲解不能退化成 checklist。")
-    missing = [heading for heading in MAIN_REQUIRED_HEADINGS if not has_heading(text, heading)]
+    missing = [name for name, headings in MAIN_REQUIRED_HEADING_GROUPS if not has_any_heading(text, headings)]
     if missing:
-        report.add_error(f"{label}主干讲解缺少必需标题：{', '.join(missing)}")
-    missing_core = [heading for heading in CORE_REQUIRED_HEADINGS if not has_heading(text, heading)]
-    if missing_core:
-        report.add_error(f"{label}核心主题缺少认知坡道标题：{', '.join(missing_core)}")
+        report.add_error(f"{label}主干讲解缺少必需结构：{', '.join(missing)}")
+    template_count = fixed_template_sequence_count(text)
+    if template_count >= 2:
+        report.add_error(f"{label}固定五段模板重复出现 {template_count} 次；主干讲解应改成自然讲解结构。")
+    elif template_count == 1:
+        report.add_warning(f"{label}出现一次固定五段模板；确认它是自然讲解需要，而不是按检查项填空。")
     count = cjk_count(text)
     if count < 2000:
         report.add_error(f"{label}主干讲解中文字数约 {count}，过短；默认 S8 不能只给压缩卡片。")
     elif count < 2500:
         report.add_warning(f"{label}主干讲解中文字数约 {count}，偏短；确认不是速查卡。")
+    paragraph_lengths = paragraph_cjk_lengths(text)
+    if count >= 2000 and not any(length >= 80 for length in paragraph_lengths):
+        report.add_error(f"{label}主干讲解缺少连续解释段；不要只用公式、表格或列表归档知识点。")
     bullets, content, max_run = bullet_stats(text)
     if content and bullets / content > 0.45:
-        report.add_error(f"{label}bullet 行占比 {bullets}/{content}，过高；主干讲解应以解释段落为主。")
+        report.add_warning(f"{label}bullet 行占比 {bullets}/{content}，偏高；确认没有过度速查化，必要时补解释段、小例子或过渡句。")
     if max_run > 8:
         report.add_warning(f"{label}连续 bullet {max_run} 行；超过 8 行时建议改成解释段 + 小例子 + 自测。")
-    long_paragraphs = [length for length in paragraph_cjk_lengths(text) if length > 250]
+    long_paragraphs = [length for length in paragraph_lengths if length > 250]
     if long_paragraphs:
         report.add_warning(f"{label}存在 {len(long_paragraphs)} 个超过 250 中文字符的长段落。")
     if math_without_nearby_explanation(text):
         report.add_warning(f"{label}公式附近缺少符号含义、条件或题目触发信号解释。")
     if not has_process_chain(text):
         report.add_warning(f"{label}未发现明显因果链、状态循环、过程链或 Mermaid 增强。")
+    if not has_any_heading(text, S10_ENTRY_HEADINGS):
+        report.add_warning(f"{label}建议提供进入 S10 的问题入口，帮助主干讲解接到问答、做题或纠错。")
     return report
 
 
